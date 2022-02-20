@@ -1,1 +1,4 @@
 Cargo.lock
+.replit
+target/
+replit.nix
