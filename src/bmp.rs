@@ -1,5 +1,6 @@
 use std::fs;
 use std::convert::TryInto;
+//use std::io::ErrorKind;
 
 /*Documentation - important links
 https://docs.microsoft.com/en-us/windows/win32/gdi/bitmap-header-types
@@ -7,6 +8,20 @@ https://en.wikipedia.org/wiki/BMP_file_format#File_structure
 http://fileformats.archiveteam.org/wiki/BMP
 */
 
+//Errors
+pub enum ErrorKind {
+  Unsupported,
+}
+
+impl ErrorKind {
+    fn as_str(&self) -> &str {
+      match *self {
+        ErrorKind::Unsupported => "File is unsupported",
+      }
+    }
+}
+
+//File header
 struct BITMAPFILEHEADER {
   bfType: String,
   bfSize: u32,
@@ -155,7 +170,7 @@ impl BMP {
     }
   }
   //dib header related
-  fn get_dib_header(&self) {
+  fn get_dib_header(&self) -> Result<DIBHEADER, ErrorKind> {
     //this will not work because there may be other data besides the DIB header
     //let dib_size: i32 = self.get_offset()-14;
     //instead we will read the first 4 bytes after the header, which *should* specify the DIB header size, so we can figure out what kind of header it is
@@ -175,7 +190,7 @@ impl BMP {
       },
       40 => {
         //"BITMAPINFOHEADER"
-        DIBHEADER::BITMAPINFOHEADER(BITMAPINFOHEADER {
+        dib_header = DIBHEADER::BITMAPINFOHEADER(BITMAPINFOHEADER {
           size: dib_size as u16,
           width: BMP::bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+8].try_into().unwrap()),
           height: BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+12].try_into().unwrap()),
@@ -191,7 +206,7 @@ impl BMP {
       },
       108 => {
         //"BITMAPV4HEADER"
-        DIBHEADER::BITMAPV4HEADER(BITMAPV4HEADER {
+        dib_header = DIBHEADER::BITMAPV4HEADER(BITMAPV4HEADER {
           size: dib_size as u16,
           width: BMP::bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+8].try_into().unwrap()),
           height: BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+12].try_into().unwrap()),
@@ -220,7 +235,7 @@ impl BMP {
         //dword 4 bytes
           //long 4 bytes
           //CIEXYZTRIPLE 36 bytes
-        DIBHEADER::BITMAPV5HEADER(BITMAPV5HEADER {
+        dib_header = DIBHEADER::BITMAPV5HEADER(BITMAPV5HEADER {
           size: dib_size as u16,
           width: BMP::bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+8].try_into().unwrap()),
           height: BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+12].try_into().unwrap()),
@@ -250,7 +265,9 @@ impl BMP {
       },
       _ => {
         //"unsupported"
+        return Err(ErrorKind::Unsupported);
       },
     };
+    return Ok(dib_header);
   }
 }
