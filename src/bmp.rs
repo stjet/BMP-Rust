@@ -17,82 +17,80 @@ struct BITMAPFILEHEADER {
 
 //DIB Headers
 struct BITMAPCOREHEADER {
-  bcSize: u16,
-  bcWidth: u32,
-  bcHeight: u32,
-  bcPlanes: u16,
-  bcBitCount: u16,
+  size: u16,
+  width: u32,
+  height: u32,
+  planes: u16,
+  bitcount: u16,
 }
 
 //if biCompression is BI_ALPHABITFIELDS or BI_BITFIELDS 
 struct BITMAPINFOHEADER {
-  biSize: u16,
-  biWidth: u32,
+  size: u16,
+  width: u32,
   //biHeight can be negative
-  biHeight: i32,
-  biPlanes: u16,
-  biBitCount: u16,
-  biCompression: String,
-  biSizeImage: u32,
-  biXPelsPerMeter: u32,
-  biYPelsPerMeter: u32,
-  biClrUsed: u32,
-  biClrImportant: u32,
+  height: i32,
+  planes: u16,
+  bitcount: u16,
+  compression: String,
+  sizeimage: u32,
+  XPelsPerMeter: u32,
+  YPelsPerMeter: u32,
+  ClrUsed: u32,
+  ClrImportant: u32,
 }
 
 struct BITMAPV4HEADER {
-  bV4Size: u16,
-  bV4Width: u32,
+  size: u16,
+  width: u32,
   //bV4Height can be negative
-  bV4Height: i32,
-  bV4Planes: u16,
-  bV4BitCount: u16,
-  bV4V4Compression: String,
-  bV4SizeImage: u32,
-  bV4XPelsPerMeter: u32,
-  bV4YPelsPerMeter: u32,
-  bV4ClrUsed: u32,
-  bV4ClrImportant: u32,
-  bV4RedMask: u32,
-  bV4GreenMask: u32,
-  bV4BlueMask: u32,
-  bV4AlphaMask: u32,
-  bV4CSType: String,
+  height: i32,
+  planes: u16,
+  bitcount: u16,
+  compression: String,
+  sizeimage: u32,
+  XPelsPerMeter: u32,
+  YPelsPerMeter: u32,
+  ClrUsed: u32,
+  ClrImportant: u32,
+  RedMask: u32,
+  GreenMask: u32,
+  BlueMask: u32,
+  AlphaMask: u32,
+  CSType: String,
   //rgb
-  bV4Endpoints: [[i32; 3]; 3],
-  bV4GammaRed: u32,
-  bV4GammaGreen: u32,
-  bV4GammaBlue: u32,
+  Endpoints: [[i32; 3]; 3],
+  GammaRed: u32,
+  GammaGreen: u32,
+  GammaBlue: u32,
 }
 
-/*
 struct BITMAPV5HEADER {
-  DWORD        bV5Size;
-  LONG         bV5Width;
-  LONG         bV5Height;
-  WORD         bV5Planes;
-  WORD         bV5BitCount;
-  DWORD        bV5Compression;
-  DWORD        bV5SizeImage;
-  LONG         bV5XPelsPerMeter;
-  LONG         bV5YPelsPerMeter;
-  DWORD        bV5ClrUsed;
-  DWORD        bV5ClrImportant;
-  DWORD        bV5RedMask;
-  DWORD        bV5GreenMask;
-  DWORD        bV5BlueMask;
-  DWORD        bV5AlphaMask;
-  DWORD        bV5CSType;
-  CIEXYZTRIPLE bV5Endpoints;
-  DWORD        bV5GammaRed;
-  DWORD        bV5GammaGreen;
-  DWORD        bV5GammaBlue;
-  DWORD        bV5Intent;
-  DWORD        bV5ProfileData;
-  DWORD        bV5ProfileSize;
-  DWORD        bV5Reserved;
+  size: u16,
+  width: u32,
+  height: i32,
+  planes: u16,
+  bitcount: u16,
+  compression: String,
+  sizeimage: u32,
+  XPelsPerMeter: u32,
+  YPelsPerMeter: u32,
+  ClrUsed: u32,
+  ClrImportant: u32,
+  RedMask: u32,
+  GreenMask: u32,
+  BlueMask: u32,
+  AlphaMask: u32,
+  CSType: String,
+  Endpoints: [[i32; 3]; 3],
+  GammaRed: u32,
+  GammaGreen: u32,
+  GammaBlue: u32,
+  Intent: String,
+  ProfileData: u16,
+  ProfileSize: u16,
+  Reserved: Vec<u8>,
 }
-*/
 
 enum DIBHEADER {
   BITMAPCOREHEADER,
