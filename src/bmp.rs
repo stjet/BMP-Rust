@@ -93,9 +93,10 @@ struct BITMAPV5HEADER {
 }
 
 enum DIBHEADER {
-  BITMAPCOREHEADER,
-  BITMAPINFOHEADER,
-  BITMAPV4HEADER,
+  BITMAPCOREHEADER(BITMAPCOREHEADER),
+  BITMAPINFOHEADER(BITMAPINFOHEADER),
+  BITMAPV4HEADER(BITMAPV4HEADER),
+  BITMAPV5HEADER(BITMAPV5HEADER),
 }
 
 pub struct BMP {
@@ -117,6 +118,9 @@ impl BMP {
   //utilities
   fn bytes_to_int(bytes: [u8; 4]) -> u32 {
     u32::from_ne_bytes(bytes)
+  }
+  fn bytes_to_signed_int(bytes: [u8; 4]) -> i32 {
+    i32::from_ne_bytes(bytes)
   }
   fn bytes_to_string(bytes: &[u8]) -> String {
     String::from_utf8_lossy(&bytes).to_string()
@@ -155,13 +159,98 @@ impl BMP {
     //this will not work because there may be other data besides the DIB header
     //let dib_size: i32 = self.get_offset()-14;
     //instead we will read the first 4 bytes after the header, which *should* specify the DIB header size, so we can figure out what kind of header it is
-    let dib_size: u32 = BMP::bytes_to_int(self.contents[14..18].try_into().unwrap());
+    let HEADER_OFFSET = 14;
+    let dib_size: u32 = BMP::bytes_to_int(self.contents[HEADER_OFFSET..HEADER_OFFSET+4].try_into().unwrap());
+    let dib_header: DIBHEADER;
     match dib_size {
-      12 => "BITMAPCOREHEADER",
-      40 => "BITMAPINFOHEADER",
-      108 => "BITMAPV4HEADER",
-      124 => "BITMAPV5HEADER",
-      _ => "invalid",
+      12 => {
+        //"BITMAPCOREHEADER"
+        dib_header = DIBHEADER::BITMAPCOREHEADER(BITMAPCOREHEADER {
+          size: dib_size as u16,
+          width: BMP::bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+6].try_into().unwrap()),
+          height: BMP::bytes_to_int(self.contents[HEADER_OFFSET+6..HEADER_OFFSET+8].try_into().unwrap()),
+          planes: BMP::bytes_to_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+10].try_into().unwrap()) as u16,
+          bitcount: BMP::bytes_to_int(self.contents[HEADER_OFFSET+10..HEADER_OFFSET+12].try_into().unwrap()) as u16,
+        });
+      },
+      40 => {
+        //"BITMAPINFOHEADER"
+        DIBHEADER::BITMAPINFOHEADER(BITMAPINFOHEADER {
+          size: dib_size as u16,
+          width: BMP::bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+8].try_into().unwrap()),
+          height: BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+12].try_into().unwrap()),
+          planes: BMP::bytes_to_int(self.contents[HEADER_OFFSET+12..HEADER_OFFSET+14].try_into().unwrap()) as u16,
+          bitcount: BMP::bytes_to_int(self.contents[HEADER_OFFSET+14..HEADER_OFFSET+16].try_into().unwrap()) as u16,
+          compression: BMP::bytes_to_string(&self.contents[HEADER_OFFSET+16..HEADER_OFFSET+20]),
+          sizeimage: BMP::bytes_to_int(self.contents[HEADER_OFFSET+20..HEADER_OFFSET+24].try_into().unwrap()),
+          XPelsPerMeter: BMP::bytes_to_int(self.contents[HEADER_OFFSET+24..HEADER_OFFSET+28].try_into().unwrap()),
+          YPelsPerMeter: BMP::bytes_to_int(self.contents[HEADER_OFFSET+28..HEADER_OFFSET+32].try_into().unwrap()),
+          ClrUsed: BMP::bytes_to_int(self.contents[HEADER_OFFSET+32..HEADER_OFFSET+36].try_into().unwrap()),
+          ClrImportant: BMP::bytes_to_int(self.contents[HEADER_OFFSET+36..HEADER_OFFSET+40].try_into().unwrap()),
+        });
+      },
+      108 => {
+        //"BITMAPV4HEADER"
+        DIBHEADER::BITMAPV4HEADER(BITMAPV4HEADER {
+          size: dib_size as u16,
+          width: BMP::bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+8].try_into().unwrap()),
+          height: BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+12].try_into().unwrap()),
+          planes: BMP::bytes_to_int(self.contents[HEADER_OFFSET+12..HEADER_OFFSET+14].try_into().unwrap()) as u16,
+          bitcount: BMP::bytes_to_int(self.contents[HEADER_OFFSET+14..HEADER_OFFSET+16].try_into().unwrap()) as u16,
+          compression: BMP::bytes_to_string(&self.contents[HEADER_OFFSET+16..HEADER_OFFSET+20]),
+          sizeimage: BMP::bytes_to_int(self.contents[HEADER_OFFSET+20..HEADER_OFFSET+24].try_into().unwrap()),
+          XPelsPerMeter: BMP::bytes_to_int(self.contents[HEADER_OFFSET+24..HEADER_OFFSET+28].try_into().unwrap()),
+          YPelsPerMeter: BMP::bytes_to_int(self.contents[HEADER_OFFSET+28..HEADER_OFFSET+32].try_into().unwrap()),
+          ClrUsed: BMP::bytes_to_int(self.contents[HEADER_OFFSET+32..HEADER_OFFSET+36].try_into().unwrap()),
+          ClrImportant: BMP::bytes_to_int(self.contents[HEADER_OFFSET+36..HEADER_OFFSET+40].try_into().unwrap()),
+          RedMask: BMP::bytes_to_int(self.contents[HEADER_OFFSET+40..HEADER_OFFSET+44].try_into().unwrap()),
+          GreenMask: BMP::bytes_to_int(self.contents[HEADER_OFFSET+44..HEADER_OFFSET+48].try_into().unwrap()),
+          BlueMask: BMP::bytes_to_int(self.contents[HEADER_OFFSET+48..HEADER_OFFSET+52].try_into().unwrap()),
+          AlphaMask: BMP::bytes_to_int(self.contents[HEADER_OFFSET+52..HEADER_OFFSET+56].try_into().unwrap()),
+          CSType: BMP::bytes_to_string(&self.contents[HEADER_OFFSET+56..HEADER_OFFSET+60]),
+          //rgb
+          Endpoints: [[BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+60..HEADER_OFFSET+64].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+64..HEADER_OFFSET+68].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+68..HEADER_OFFSET+72].try_into().unwrap())], [BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+72..HEADER_OFFSET+76].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+76..HEADER_OFFSET+80].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+80..HEADER_OFFSET+84].try_into().unwrap())], [BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+84..HEADER_OFFSET+88].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+88..HEADER_OFFSET+92].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+92..HEADER_OFFSET+96].try_into().unwrap())]],
+          GammaRed: BMP::bytes_to_int(self.contents[HEADER_OFFSET+96..HEADER_OFFSET+100].try_into().unwrap()),
+          GammaGreen: BMP::bytes_to_int(self.contents[HEADER_OFFSET+100..HEADER_OFFSET+104].try_into().unwrap()),
+          GammaBlue: BMP::bytes_to_int(self.contents[HEADER_OFFSET+104..HEADER_OFFSET+108].try_into().unwrap()),
+        });
+      },
+      124 => {
+        //"BITMAPV5HEADER"
+        //dword 4 bytes
+          //long 4 bytes
+          //CIEXYZTRIPLE 36 bytes
+        DIBHEADER::BITMAPV5HEADER(BITMAPV5HEADER {
+          size: dib_size as u16,
+          width: BMP::bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+8].try_into().unwrap()),
+          height: BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+12].try_into().unwrap()),
+          planes: BMP::bytes_to_int(self.contents[HEADER_OFFSET+12..HEADER_OFFSET+14].try_into().unwrap()) as u16,
+          bitcount: BMP::bytes_to_int(self.contents[HEADER_OFFSET+14..HEADER_OFFSET+16].try_into().unwrap()) as u16,
+          compression: BMP::bytes_to_string(&self.contents[HEADER_OFFSET+16..HEADER_OFFSET+20]),
+          sizeimage: BMP::bytes_to_int(self.contents[HEADER_OFFSET+20..HEADER_OFFSET+24].try_into().unwrap()),
+          XPelsPerMeter: BMP::bytes_to_int(self.contents[HEADER_OFFSET+24..HEADER_OFFSET+28].try_into().unwrap()),
+          YPelsPerMeter: BMP::bytes_to_int(self.contents[HEADER_OFFSET+28..HEADER_OFFSET+32].try_into().unwrap()),
+          ClrUsed: BMP::bytes_to_int(self.contents[HEADER_OFFSET+32..HEADER_OFFSET+36].try_into().unwrap()),
+          ClrImportant: BMP::bytes_to_int(self.contents[HEADER_OFFSET+36..HEADER_OFFSET+40].try_into().unwrap()),
+          RedMask: BMP::bytes_to_int(self.contents[HEADER_OFFSET+40..HEADER_OFFSET+44].try_into().unwrap()),
+          GreenMask: BMP::bytes_to_int(self.contents[HEADER_OFFSET+44..HEADER_OFFSET+48].try_into().unwrap()),
+          BlueMask: BMP::bytes_to_int(self.contents[HEADER_OFFSET+48..HEADER_OFFSET+52].try_into().unwrap()),
+          AlphaMask: BMP::bytes_to_int(self.contents[HEADER_OFFSET+52..HEADER_OFFSET+56].try_into().unwrap()),
+          CSType: BMP::bytes_to_string(&self.contents[HEADER_OFFSET+56..HEADER_OFFSET+60]),
+          //rgb
+          Endpoints: [[BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+60..HEADER_OFFSET+64].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+64..HEADER_OFFSET+68].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+68..HEADER_OFFSET+72].try_into().unwrap())], [BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+72..HEADER_OFFSET+76].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+76..HEADER_OFFSET+80].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+80..HEADER_OFFSET+84].try_into().unwrap())], [BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+84..HEADER_OFFSET+88].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+88..HEADER_OFFSET+92].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+92..HEADER_OFFSET+96].try_into().unwrap())]],
+          GammaRed: BMP::bytes_to_int(self.contents[HEADER_OFFSET+96..HEADER_OFFSET+100].try_into().unwrap()),
+          GammaGreen: BMP::bytes_to_int(self.contents[HEADER_OFFSET+100..HEADER_OFFSET+104].try_into().unwrap()),
+          GammaBlue: BMP::bytes_to_int(self.contents[HEADER_OFFSET+104..HEADER_OFFSET+108].try_into().unwrap()),
+          Intent: BMP::bytes_to_string(&self.contents[HEADER_OFFSET+108..HEADER_OFFSET+112]),
+          ProfileData: BMP::bytes_to_int(self.contents[HEADER_OFFSET+112..HEADER_OFFSET+116].try_into().unwrap()) as u16,
+          ProfileSize: BMP::bytes_to_int(self.contents[HEADER_OFFSET+116..HEADER_OFFSET+120].try_into().unwrap()) as u16,
+          Reserved: self.contents[HEADER_OFFSET+120..HEADER_OFFSET+124].try_into().unwrap(),
+        });
+      },
+      _ => {
+        //"unsupported"
+      },
     };
   }
 }
