@@ -11,12 +11,18 @@ http://fileformats.archiveteam.org/wiki/BMP
 //Errors
 pub enum ErrorKind {
   Unsupported,
+  DoesNotExist,
+  WrongFileType,
+  UseExtraBitMasks,
 }
 
 impl ErrorKind {
     fn as_str(&self) -> &str {
       match *self {
         ErrorKind::Unsupported => "File is unsupported",
+        ErrorKind::DoesNotExist => "Requested object does not exist",
+        ErrorKind::WrongFileType => "Wrong file type. Must be a .bmp file",
+        ErrorKind::UseExtraBitMasks => "Use extra bit masks instead",
       }
     }
 }
@@ -114,6 +120,31 @@ enum DIBHEADER {
   BITMAPV5HEADER(BITMAPV5HEADER),
 }
 
+//rgbtriple and rgbquad
+enum ColorTable {
+  RGBTRIPLE(Vec<[u8; 3]>),
+  RGBQUAD(Vec<[u8; 4]>),
+}
+
+//extra bit masks, these are unofficial names
+struct BI_BITFIELDS_MASKS {
+  red: u32,
+  green: u32,
+  blue: u32,
+}
+
+struct BI_ALPHABITFIELDS_MASKS {
+  red: u32,
+  green: u32,
+  blue: u32,
+  alpha: u32,
+}
+
+enum EXTRA_BIT_MASKS {
+  BI_BITFIELDS_MASKS(BI_BITFIELDS_MASKS),
+  BI_ALPHABITFIELDS_MASKS(BI_ALPHABITFIELDS_MASKS),
+}
+
 pub struct BMP {
   contents: Vec<u8>,
   from_file: bool,
@@ -132,10 +163,13 @@ impl BMP {
   }
   //utilities
   fn bytes_to_int(bytes: [u8; 4]) -> u32 {
-    u32::from_ne_bytes(bytes)
+    u32::from_le_bytes(bytes)
+  }
+  fn byte_to_int(byte: u8) -> u8 {
+    u8::from_le_bytes([byte])
   }
   fn bytes_to_signed_int(bytes: [u8; 4]) -> i32 {
-    i32::from_ne_bytes(bytes)
+    i32::from_le_bytes(bytes)
   }
   fn bytes_to_string(bytes: &[u8]) -> String {
     String::from_utf8_lossy(&bytes).to_string()
@@ -267,7 +301,120 @@ impl BMP {
         //"unsupported"
         return Err(ErrorKind::Unsupported);
       },
-    };
+    }
     return Ok(dib_header);
   }
+  //extra bit masks
+  fn get_extra_bit_masks(&self) -> Result<EXTRA_BIT_MASKS, ErrorKind> {
+    //should be mutable instead of redefined, maybe
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    match dib_header {
+      DIBHEADER::BITMAPINFOHEADER(BITMAPINFOHEADER) => {
+        //see previous comment, should be mutable instead of redefined, maybe
+        let dib_header = BITMAPINFOHEADER;
+        //offset should be 14+40
+        let TOTAL_OFFSET = 54;
+        if dib_header.compression == "BI_BITFIELDS" {
+          return Ok(EXTRA_BIT_MASKS::BI_BITFIELDS_MASKS(BI_BITFIELDS_MASKS {
+            red: BMP::bytes_to_int(self.contents[TOTAL_OFFSET..TOTAL_OFFSET+4].try_into().unwrap()),
+            green: BMP::bytes_to_int(self.contents[TOTAL_OFFSET+4..TOTAL_OFFSET+8].try_into().unwrap()),
+            blue: BMP::bytes_to_int(self.contents[TOTAL_OFFSET+8..TOTAL_OFFSET+12].try_into().unwrap()),
+          }));
+        } else if dib_header.compression == "BI_ALPHABITFIELDS" {
+          return Ok(EXTRA_BIT_MASKS::BI_ALPHABITFIELDS_MASKS(BI_ALPHABITFIELDS_MASKS {
+            red: BMP::bytes_to_int(self.contents[TOTAL_OFFSET..TOTAL_OFFSET+4].try_into().unwrap()),
+            green: BMP::bytes_to_int(self.contents[TOTAL_OFFSET+4..TOTAL_OFFSET+8].try_into().unwrap()),
+            blue: BMP::bytes_to_int(self.contents[TOTAL_OFFSET+8..TOTAL_OFFSET+12].try_into().unwrap()),
+            alpha: BMP::bytes_to_int(self.contents[TOTAL_OFFSET+12..TOTAL_OFFSET+16].try_into().unwrap()),
+          }));
+        } else {
+          return Err(ErrorKind::DoesNotExist);
+        }
+      },
+      _ => return Err(ErrorKind::DoesNotExist),
+    }
+  }
+  //color table
+  //in between pixel array and everything else, I guess?
+  //update: use the dib header's 'size' attribute - the actual size
+  //return some kind of vector/array
+  fn get_color_table(&self) -> Result<ColorTable, ErrorKind> {
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    //match (?) and extract header, get size
+    //14 is the file header size
+    let mut offset: u16 = 14;
+    //where the actual pixel data starts, so the color table must end sometime before
+    let end: u16;
+    //either rgbtriple or masks or 
+    let data_type: &str;
+    match dib_header {
+      /*DIBHEADER::BITMAPCOREHEADER(b) | DIBHEADER::BITMAPINFOHEADER(b) | DIBHEADER::BITMAPV4HEADER(b) | DIBHEADER::BITMAPV5HEADER(b) => {
+        size = b.size;
+      }*/
+      DIBHEADER::BITMAPCOREHEADER(BITMAPCOREHEADER) => {
+        //https://docs.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-bitmapcoreinfo
+        offset += BITMAPCOREHEADER.size;
+        end = self.get_header().bfOffBits;
+        //RGBTRIPLE, 3 bytes
+        data_type = "rgbtriple";
+      },
+      DIBHEADER::BITMAPINFOHEADER(bih) => {
+        //16 bit array instead of rgbquad is possible, but should not be used if file is "stored in a file or transferred to another application" https://www.digicamsoft.com/bmp/bmp.html
+        offset += bih.size;
+        end = self.get_header().bfOffBits;
+        //https://docs.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-bitmapinfo
+        //if compression is BI_RGB, using RGBQUAD 
+        //size of array is biClrUsed
+        if bih.compression == "BI_BITFIELDS" && (bih.bitcount == 16 || bih.bitcount == 32) {
+          //extra bit masks, not color table. return error, or maybe extra bit masks? hmm
+          return Err(ErrorKind::UseExtraBitMasks);
+        } else if bih.compression == "BI_RGB" && bih.bitcount >= 16 {
+          //no color table
+          //color table used for optimizing color palette or something instead, idk
+          return Err(ErrorKind::DoesNotExist);
+        } else {
+          data_type = "rgbquad";
+        }
+      },
+      /*DIBHEADER::BITMAPV4HEADER(bih) => {
+        //
+      },
+      DIBHEADER::BITMAPV5HEADER(bih) => {
+        //
+      },*/
+      _ => {
+        return Err(ErrorKind::DoesNotExist);
+      },
+    };
+    let color_table: ColorTable;
+    if "rgbtriple" == data_type {
+      let mut color_table_vec: Vec::<[u8; 3]> = Vec::new();
+      //3 bytes
+      for i in 0..(f64::from((end-offset)/3).floor() as i64) {
+        let ii = i as u16;
+        color_table_vec.push([BMP::byte_to_int(self.contents[(offset+ii*3) as usize]) as u8, BMP::byte_to_int(self.contents[(offset+ii*3+1) as usize]) as u8, BMP::byte_to_int(self.contents[(offset+ii*3+2) as usize]) as u8]);
+      }
+      color_table = ColorTable::RGBTRIPLE(color_table_vec);
+    } else /*if "rgbquad" == data_type*/ {
+      let mut color_table_vec: Vec::<[u8; 4]> = Vec::new();
+      //4 bytes
+      for i in 0..(f64::from((end-offset)/4).floor() as i64) {
+        let ii = i as u16;
+        color_table_vec.push([BMP::byte_to_int(self.contents[(offset+ii*4) as usize]) as u8, BMP::byte_to_int(self.contents[(offset+ii*4+1) as usize]) as u8, BMP::byte_to_int(self.contents[(offset+ii*4+2) as usize]) as u8, BMP::byte_to_int(self.contents[(offset+ii*4+3) as usize]) as u8]);
+      }
+      color_table = ColorTable::RGBQUAD(color_table_vec);
+    }
+    return Ok(color_table);
+  }
+  //pixel array
+  //location here is told
+  //ICC color profile
 }
