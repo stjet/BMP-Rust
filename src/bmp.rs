@@ -1,5 +1,6 @@
 use std::fs;
 use std::convert::TryInto;
+use std::collections::VecDeque;
 //use std::io::ErrorKind;
 
 /*Documentation - important links
@@ -415,6 +416,65 @@ impl BMP {
     return Ok(color_table);
   }
   //pixel array
+  fn get_pixel_data(&self) -> Vec<VecDeque<Vec<u8>>> {
+    //figure out if top down or bottom up
+    let dib_header_wrapped = self.get_dib_header();
+    let dib_header_enum = match dib_header_wrapped {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    let dib_header = match dib_header_enum {
+      DIBHEADER::BITMAPCOREHEADER(BITMAPCOREHEADER) => BITMAPCOREHEADER,
+      DIBHEADER::BITMAPINFOHEADER(BITMAPINFOHEADER) => BITMAPINFOHEADER,
+      DIBHEADER::BITMAPV4HEADER(BITMAPV4HEADER) => BITMAPV4HEADER,
+      DIBHEADER::BITMAPV5HEADER(BITMAPV5HEADER) => BITMAPV5HEADER,
+    };
+    //figure out row size and image height
+    //figure out pixel formatw1
+    //figure out is padded
+    //monochrome is 1 bit per pixel. lets not support that for now
+    //Vec<[[u8; dib_header.bitcount/4]; dib_header.width]>
+    //change to array https://discord.com/channels/273534239310479360/273541522815713281/951356330696912967
+    let rows: Vec<VecDeque<Vec<u8>>> = Vec::new();
+    let header = self.get_header();
+    if (dib_header.height > 0) {
+      //top up
+      //add rows as normal, to the back of vector
+      //header.bfOffBits
+      //https://en.wikipedia.org/wiki/BMP_file_format#Pixel_storage
+      let row_length = f64::from((dib_header.bitcount*dib_header.width/32)*4).ceil() as u16;
+      let rows_num = (self.contents.len() as u16-header.bfOffBits)/row_length;
+      for row_num in 0..rows_num {
+        //let row: Vec<[u8; dib_header.bitcount/4]> = Vec::new();
+        let row: VecDeque<Vec<u8>> = VecDeque::new();
+        for pixel in 0..dib_header.width {
+          let start = header.bfOffBits+row_num*row_length+pixel*(dib_header.bitcount/4);
+          row.push_back(self.contents[start..start+(dib_header.bitcount/4)].to_vec());
+        }
+        rows.push(row);
+      }
+      //self.contents[]
+    } else if (dib_header.height < 0) {
+      //bottom up
+      //add rows to front of vector
+      let row_length = f64::from((dib_header.bitcount*dib_header.width/32)*4).ceil() as u16;
+      let rows_num = (self.contents.len() as u16-header.bfOffBits)/row_length;
+      for row_num in 0..rows_num {
+        let row: VecDeque<Vec<u8>> = VecDeque::new();
+        for pixel in 0..dib_header.width {
+          let start = header.bfOffBits+row_num*row_length+pixel*(dib_header.bitcount/4);
+          row.push_front(self.contents[start..start+(dib_header.bitcount/4)].to_vec());
+        }
+        rows.push(row);
+      }
+    }
+    return rows;
+  }
   //location here is told
   //ICC color profile
+  fn get_color_profile(&self) {
+    //
+  }
+  //interpret color data
+  //edit color pixels
 }
