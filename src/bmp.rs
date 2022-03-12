@@ -1,7 +1,10 @@
 use std::fs;
 use std::convert::TryInto;
 use std::collections::VecDeque;
+use std::fmt;
 //use std::io::ErrorKind;
+
+//support packed dibs, dibs that have no empty gaps
 
 /*Documentation - important links
 https://docs.microsoft.com/en-us/windows/win32/gdi/bitmap-header-types
@@ -18,14 +21,20 @@ pub enum ErrorKind {
 }
 
 impl ErrorKind {
-    fn as_str(&self) -> &str {
-      match *self {
-        ErrorKind::Unsupported => "File is unsupported",
-        ErrorKind::DoesNotExist => "Requested object does not exist",
-        ErrorKind::WrongFileType => "Wrong file type. Must be a .bmp file",
-        ErrorKind::UseExtraBitMasks => "Use extra bit masks instead",
-      }
+  fn as_str(&self) -> &str {
+    match *self {
+      ErrorKind::Unsupported => "File is unsupported",
+      ErrorKind::DoesNotExist => "Requested object does not exist",
+      ErrorKind::WrongFileType => "Wrong file type. Must be a .bmp file",
+      ErrorKind::UseExtraBitMasks => "Use extra bit masks instead",
     }
+  }
+}
+
+impl fmt::Display for ErrorKind {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "Error: {}", self.as_str())
+  }
 }
 
 //File header
@@ -528,9 +537,35 @@ impl BMP {
   }
   //location here is told
   //ICC color profile
-  fn get_color_profile(&self) {
-    //
+  fn get_color_profile(&self) -> Result<Vec<u8>, ErrorKind> {
+    //https://en.wikipedia.org/wiki/Color_management
+    //CIEXYZTRIPLE ?
+    //https://www.color.org/ICC_Minor_Revision_for_Web.pdf
+    //seems pretty complex, and niche. We'll check if it exists, if so, return raw bytes data, otherwise return error
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    match dib_header.size {
+      124 => {
+        let cstype = dib_header.CSType.unwrap();
+        if cstype == "PROFILE_EMBEDDED" || cstype == "PROFILE_LINKED" {
+          return Ok(self.contents[dib_header.ProfileData.unwrap() as usize..].to_vec());
+          //dib_header.ProfileData.unwrap()..dib_header.ProfileData.unwrap()+dib_header.ProfileSize.unwrap()
+        } else {
+          return Err(ErrorKind::DoesNotExist);
+        }
+      },
+      _ => return Err(ErrorKind::DoesNotExist),
+    }
+    //Intent: String,
+    //ProfileData: u16,
+    //ProfileSize: u16,
+    //CSType: String
   }
   //interpret color data
   //edit color pixels
 }
+
+//https://docs.microsoft.com/en-us/windows/win32/wcs/basic-color-management-concepts
