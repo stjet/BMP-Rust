@@ -6,7 +6,8 @@ use std::fmt;
 
 //support packed dibs, dibs that have no empty gaps
 
-/*Documentation - important links
+/*
+Documentation - important links
 https://docs.microsoft.com/en-us/windows/win32/gdi/bitmap-header-types
 https://en.wikipedia.org/wiki/BMP_file_format#File_structure
 http://fileformats.archiveteam.org/wiki/BMP
@@ -216,6 +217,10 @@ impl BMP {
   fn num_bytes_to_kilobytes(bytes: u32) -> u32 {
     //1024 bytes per kilobyte
     bytes/1024
+  }
+  //color related utilities
+  fn alpha_to_percentage(alpha: u8) -> f64 {
+    return alpha/255;
   }
   //file header related
   fn get_header(&self) -> BITMAPFILEHEADER {
@@ -502,7 +507,7 @@ impl BMP {
     //change to array https://discord.com/channels/273534239310479360/273541522815713281/951356330696912967
     let mut rows: Vec<VecDeque<Vec<u8>>> = Vec::new();
     let header = self.get_header();
-    if dib_header.height > 0 {
+    if dib_header.height > 0 && dib_header.bitcount > 8 {
       //top up
       //add rows as normal, to the back of vector
       //header.bfOffBits
@@ -510,11 +515,27 @@ impl BMP {
       let row_length = f64::from((dib_header.bitcount as u16*dib_header.width as u16/32)*4).ceil() as u16;
       let rows_num = (self.contents.len() as u16-header.bfOffBits)/row_length;
       for row_num in 0..rows_num {
-        //let row: Vec<[u8; dib_header.bitcount/4]> = Vec::new();
+          //let row: Vec<[u8; dib_header.bitcount/4]> = Vec::new();
         let mut row: VecDeque<Vec<u8>> = VecDeque::new();
         for pixel in 0..dib_header.width {
-          let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*((dib_header.bitcount/4) as u16);
-          row.push_back(self.contents[start as usize..(start+(dib_header.bitcount/4)) as usize].to_vec());
+          if (dib_header.bitcount >= 8) {
+            let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*((dib_header.bitcount/4) as u16);
+            row.push_back(self.contents[start as usize..(start+(dib_header.bitcount/4)) as usize].to_vec());
+          } else {
+            //we need to do bitwise operators if the pixels are smaller than 1 byte size (1 bit, 2 bit, 4 bit)
+            let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*((dib_header.bitcount/4).ceil() as u16);
+            let byte: u8 = self.contents[start as usize];
+            if dib_header.bitcount == 1 {
+              let split_bits: [u8; 8] = [byte >> 7, (byte & 0b01000000) >> 6, (byte & 0b00100000) >> 5, (byte & 0b00010000) >> 4, (byte & 0b00001000) >> 3, (byte & 0b00000100) >> 2, (byte & 0b00000010) >> 1, byte & 0b00000001];
+              row.push_back(split_bits[pixel % (8/dib_header.bitcount)]);
+            } else if dib_header.bitcount == 2 {
+              let split_bits: [u8; 4] = [byte >> 6, (byte & 0b00110000) >> 4, (byte & 0b00001100) >> 2, byte & 0b00000011];
+              row.push_back(split_bits[pixel % (8/dib_header.bitcount)]);
+            } else if dib_header.bitcount == 4 {
+              let split_bits: [u8; 2] = [byte >> 4, byte & 0b00001111];
+              row.push_back(split_bits[pixel % (8/dib_header.bitcount)]);
+            }
+          }
         }
         rows.push(row);
       }
@@ -527,8 +548,24 @@ impl BMP {
       for row_num in 0..rows_num {
         let mut row: VecDeque<Vec<u8>> = VecDeque::new();
         for pixel in 0..dib_header.width {
-          let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*((dib_header.bitcount/4) as u16);
-          row.push_front(self.contents[start as usize..(start+(dib_header.bitcount/4)) as usize].to_vec());
+          if (dib_header.bitcount >= 8) {
+            let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*((dib_header.bitcount/4) as u16);
+            row.push_front(self.contents[start as usize..(start+(dib_header.bitcount/4)) as usize].to_vec());
+          } else {
+            //we need to do bitwise operators if the pixels are smaller than 1 byte size (1 bit, 2 bit, 4 bit)
+            let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*((dib_header.bitcount/4).ceil() as u16);
+            let byte: u8 = self.contents[start as usize];
+            if dib_header.bitcount == 1 {
+              let split_bits: [u8; 8] = [byte >> 7, (byte & 0b01000000) >> 6, (byte & 0b00100000) >> 5, (byte & 0b00010000) >> 4, (byte & 0b00001000) >> 3, (byte & 0b00000100) >> 2, (byte & 0b00000010) >> 1, byte & 0b00000001];
+              row.push_front(split_bits[pixel % (8/dib_header.bitcount)]);
+            } else if dib_header.bitcount == 2 {
+              let split_bits: [u8; 4] = [byte >> 6, (byte & 0b00110000) >> 4, (byte & 0b00001100) >> 2, byte & 0b00000011];
+              row.push_front(split_bits[pixel % (8/dib_header.bitcount)]);
+            } else if dib_header.bitcount == 4 {
+              let split_bits: [u8; 2] = [byte >> 4, byte & 0b00001111];
+              row.push_front(split_bits[pixel % (8/dib_header.bitcount)]);
+            }
+          }
         }
         rows.push(row);
       }
@@ -565,6 +602,46 @@ impl BMP {
     //CSType: String
   }
   //interpret color data
+  //returns an array rgba (4 u8)
+  fn get_color_of_px(&self, x: usize, y: usize) {
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    let pixel_data = self.get_pixel_data().unwrap();
+    let pixel: Vec<u8> = pixel_data[y][x];
+    if dib_header.bitcount == 24 {
+      //if 24 bit, no need to look at color table because it is rgb.
+      //there is no alpha value, so it is 100 (nontransparent/opaque)
+      let rgba: [u8; 4] = [BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), 255];
+      return Ok(rgba);
+    } else if dib_header.bitcount == 32 {
+      //32 means rgba
+      let rgba: [u8; 4] = [BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[3])];
+      return Ok(rgba);
+    } else {
+      //otherwise look at color table for corresponding color. The bit (s) in the pixel data are indexes. We look up the index in the color table to find the color
+      let color_table = self.get_color_table();
+      let color_table = match color_table {
+        Ok(returned_dib_header) => returned_color_table,
+        Err(e) => return Err(e),
+      };
+      /*enum ColorTable {
+  RGBTRIPLE(Vec<[u8; 3]>),
+  RGBQUAD(Vec<[u8; 4]>),
+}*/
+      //1, 2, 4 (1 byte), 8 (2 bytes), 16 (4 bytes)
+      match color_table {
+        ColorTable::RGBTRIPLE(vec) => {
+          //vec[]
+        },
+        ColorTable::RGBQUAD(vec) => {
+          //vec[]
+        }
+      }
+    }
+  }
   //edit color pixels
 }
 
