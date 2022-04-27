@@ -14,26 +14,7 @@ https://en.wikipedia.org/wiki/BMP_file_format#File_structure
 http://fileformats.archiveteam.org/wiki/BMP
 */
 
-/*
-//([0, 49, 83], "prussian blue")
-const colors: HashMap<[u8; 3], String> = HashMap::from([
-  ([255, 255, 255], "white"),
-  ([0, 0, 0], "black"),
-  ([255, 0, 0], "red"),
-  ([0, 255, 0], "green"),
-  ([0, 0, 255], "blue"),
-  ([255, 128, 0], "orange"),
-  ([128, 64, 0], "brown"),
-  ([0, 128, 0], "dark green"),
-  ([255, 255, 0], "yellow"),
-  ([128, 128, 128], "gray"),
-  ([255, 192, 203], "pink"),
-  ([128, 0, 128], "purple"),
-  ([0, 128, 255], "azure"),
-  ([183, 65, 14], "rust"),
-  ([0, 128, 128], "teal")
-]);
-*/
+const HEADER_OFFSET: usize = 14;
 
 //Errors
 pub enum ErrorKind {
@@ -272,10 +253,51 @@ impl BMP {
     //.into() turns the u8 into f64 (expected return type)
     return (alpha/255).into();
   }
-  fn rgb_to_color(rgb: [u8; 3]) {
+  fn rgb_to_color(rgb: [u8; 3]) -> String {
     //changes rgb to readable color. (takes rgba) eg: black
     //finds closest color and returns
     //colors.keys()
+    //([0, 49, 83], "prussian blue")
+    let colors: HashMap<[u8; 3], String> = HashMap::from([
+      ([255, 255, 255], "white".to_string()),
+      ([0, 0, 0], "black".to_string()),
+      ([255, 0, 0], "red".to_string()),
+      ([0, 255, 0], "green".to_string()),
+      ([0, 0, 255], "blue".to_string()),
+      ([255, 128, 0], "orange".to_string()),
+      ([128, 64, 0], "brown".to_string()),
+      ([0, 128, 0], "dark green".to_string()),
+      ([255, 255, 0], "yellow".to_string()),
+      ([128, 128, 128], "gray".to_string()),
+      ([255, 192, 203], "pink".to_string()),
+      ([128, 0, 128], "purple".to_string()),
+      ([0, 128, 255], "azure".to_string()),
+      ([183, 65, 14], "rust".to_string()),
+      ([0, 128, 128], "teal".to_string()),
+      ([192, 192, 192], "silver".to_string()),
+      ([0, 255, 191], "aquamarine".to_string()),
+      ([128, 0, 0], "maroon".to_string())
+    ]);
+    if colors.contains_key(&rgb) {
+      return colors.get(&rgb).unwrap().to_string();
+    } else {
+      //by default lets say its white
+      let mut closest: [u8; 3] = [255, 255, 255];
+      for c in colors.keys() {
+        let r_diff = (c[0] as i8-rgb[0] as i8).abs() as u16;
+        let g_diff = (c[1] as i8-rgb[1] as i8).abs() as u16;
+        let b_diff = (c[2] as i8-rgb[2] as i8).abs() as u16;
+        let total_diff: u16 = r_diff+g_diff+b_diff;
+        let r2_diff = (closest[0] as i8-rgb[0] as i8).abs() as u16;
+        let g2_diff = (closest[1] as i8-rgb[1] as i8).abs() as u16;
+        let b2_diff = (closest[2] as i8-rgb[2] as i8).abs() as u16;
+        let total_diff2: u16 = r2_diff+g2_diff+b2_diff;
+        if total_diff > total_diff2 {
+          closest = *c;
+        }
+      }
+      return "Similar to ".to_string()+colors.get(&closest).unwrap();
+    }
   }
   //file header related
   fn get_header(&self) -> BITMAPFILEHEADER {
@@ -307,7 +329,6 @@ impl BMP {
     //this will not work because there may be other data besides the DIB header
     //let dib_size: i32 = self.get_offset()-14;
     //instead we will read the first 4 bytes after the header, which *should* specify the DIB header size, so we can figure out what kind of header it is
-    let HEADER_OFFSET = 14;
     let dib_size: u32 = BMP::bytes_to_int(self.contents[HEADER_OFFSET..HEADER_OFFSET+4].try_into().unwrap());
     let dib_header: DIBHEADER;
     match dib_size {
