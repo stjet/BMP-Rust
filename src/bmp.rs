@@ -2,6 +2,7 @@ use std::fs;
 use std::convert::TryInto;
 use std::collections::VecDeque;
 use std::fmt;
+use std::collections::HashMap;
 //use std::io::ErrorKind;
 
 //support packed dibs, dibs that have no empty gaps
@@ -11,6 +12,27 @@ Documentation - important links
 https://docs.microsoft.com/en-us/windows/win32/gdi/bitmap-header-types
 https://en.wikipedia.org/wiki/BMP_file_format#File_structure
 http://fileformats.archiveteam.org/wiki/BMP
+*/
+
+/*
+//([0, 49, 83], "prussian blue")
+const colors: HashMap<[u8; 3], String> = HashMap::from([
+  ([255, 255, 255], "white"),
+  ([0, 0, 0], "black"),
+  ([255, 0, 0], "red"),
+  ([0, 255, 0], "green"),
+  ([0, 0, 255], "blue"),
+  ([255, 128, 0], "orange"),
+  ([128, 64, 0], "brown"),
+  ([0, 128, 0], "dark green"),
+  ([255, 255, 0], "yellow"),
+  ([128, 128, 128], "gray"),
+  ([255, 192, 203], "pink"),
+  ([128, 0, 128], "purple"),
+  ([0, 128, 255], "azure"),
+  ([183, 65, 14], "rust"),
+  ([0, 128, 128], "teal")
+]);
 */
 
 //Errors
@@ -205,6 +227,9 @@ impl BMP {
   fn bytes_to_int(bytes: [u8; 4]) -> u32 {
     u32::from_le_bytes(bytes)
   }
+  fn two_bytes_to_int(bytes: [u8; 2]) -> u16 {
+    u16::from_le_bytes(bytes)
+  }
   fn byte_to_int(byte: u8) -> u8 {
     u8::from_le_bytes([byte])
   }
@@ -218,9 +243,39 @@ impl BMP {
     //1024 bytes per kilobyte
     bytes/1024
   }
+  fn vec_to_4u8_array(vector: Vec<u8>) -> [u8; 4] {
+    let mut array: [u8; 4] = [0u8; 4];
+    //vector.len() should be 4
+    for i in 0..vector.len() {
+      array[i] = vector[i];
+    }
+    return array;
+  }
+  fn vec_to_2u8_array(vector: Vec<u8>) -> [u8; 2] {
+    let mut array: [u8; 2] = [0u8; 2];
+    //vector.len() should be 2
+    for i in 0..vector.len() {
+      array[i] = vector[i];
+    }
+    return array;
+  }
+  fn vec_to_1u8_array(vector: Vec<u8>) -> [u8; 1] {
+    let mut array: [u8; 1] = [0u8; 1];
+    //vector.len() should be 1
+    for i in 0..vector.len() {
+      array[i] = vector[i];
+    }
+    return array;
+  }
   //color related utilities
   fn alpha_to_percentage(alpha: u8) -> f64 {
-    return alpha/255;
+    //.into() turns the u8 into f64 (expected return type)
+    return (alpha/255).into();
+  }
+  fn rgb_to_color(rgb: [u8; 3]) {
+    //changes rgb to readable color. (takes rgba) eg: black
+    //finds closest color and returns
+    //colors.keys()
   }
   //file header related
   fn get_header(&self) -> BITMAPFILEHEADER {
@@ -518,22 +573,22 @@ impl BMP {
           //let row: Vec<[u8; dib_header.bitcount/4]> = Vec::new();
         let mut row: VecDeque<Vec<u8>> = VecDeque::new();
         for pixel in 0..dib_header.width {
-          if (dib_header.bitcount >= 8) {
+          if dib_header.bitcount >= 8 {
             let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*((dib_header.bitcount/4) as u16);
             row.push_back(self.contents[start as usize..(start+(dib_header.bitcount/4)) as usize].to_vec());
           } else {
             //we need to do bitwise operators if the pixels are smaller than 1 byte size (1 bit, 2 bit, 4 bit)
-            let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*((dib_header.bitcount/4).ceil() as u16);
+            let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*(((dib_header.bitcount/4) as f64).ceil() as u16);
             let byte: u8 = self.contents[start as usize];
             if dib_header.bitcount == 1 {
               let split_bits: [u8; 8] = [byte >> 7, (byte & 0b01000000) >> 6, (byte & 0b00100000) >> 5, (byte & 0b00010000) >> 4, (byte & 0b00001000) >> 3, (byte & 0b00000100) >> 2, (byte & 0b00000010) >> 1, byte & 0b00000001];
-              row.push_back(split_bits[pixel % (8/dib_header.bitcount)]);
+              row.push_back(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
             } else if dib_header.bitcount == 2 {
               let split_bits: [u8; 4] = [byte >> 6, (byte & 0b00110000) >> 4, (byte & 0b00001100) >> 2, byte & 0b00000011];
-              row.push_back(split_bits[pixel % (8/dib_header.bitcount)]);
+              row.push_back(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
             } else if dib_header.bitcount == 4 {
               let split_bits: [u8; 2] = [byte >> 4, byte & 0b00001111];
-              row.push_back(split_bits[pixel % (8/dib_header.bitcount)]);
+              row.push_back(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
             }
           }
         }
@@ -548,22 +603,22 @@ impl BMP {
       for row_num in 0..rows_num {
         let mut row: VecDeque<Vec<u8>> = VecDeque::new();
         for pixel in 0..dib_header.width {
-          if (dib_header.bitcount >= 8) {
+          if dib_header.bitcount >= 8 {
             let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*((dib_header.bitcount/4) as u16);
             row.push_front(self.contents[start as usize..(start+(dib_header.bitcount/4)) as usize].to_vec());
           } else {
             //we need to do bitwise operators if the pixels are smaller than 1 byte size (1 bit, 2 bit, 4 bit)
-            let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*((dib_header.bitcount/4).ceil() as u16);
+            let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*(((dib_header.bitcount/4) as f64).ceil() as u16);
             let byte: u8 = self.contents[start as usize];
             if dib_header.bitcount == 1 {
               let split_bits: [u8; 8] = [byte >> 7, (byte & 0b01000000) >> 6, (byte & 0b00100000) >> 5, (byte & 0b00010000) >> 4, (byte & 0b00001000) >> 3, (byte & 0b00000100) >> 2, (byte & 0b00000010) >> 1, byte & 0b00000001];
-              row.push_front(split_bits[pixel % (8/dib_header.bitcount)]);
+              row.push_front(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
             } else if dib_header.bitcount == 2 {
               let split_bits: [u8; 4] = [byte >> 6, (byte & 0b00110000) >> 4, (byte & 0b00001100) >> 2, byte & 0b00000011];
-              row.push_front(split_bits[pixel % (8/dib_header.bitcount)]);
+              row.push_front(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
             } else if dib_header.bitcount == 4 {
               let split_bits: [u8; 2] = [byte >> 4, byte & 0b00001111];
-              row.push_front(split_bits[pixel % (8/dib_header.bitcount)]);
+              row.push_front(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
             }
           }
         }
@@ -603,14 +658,20 @@ impl BMP {
   }
   //interpret color data
   //returns an array rgba (4 u8)
-  fn get_color_of_px(&self, x: usize, y: usize) {
+  fn get_color_of_px(&self, x: usize, y: usize) -> Result<[u8; 4], ErrorKind> {
     let dib_header = self.get_dib_header();
     let dib_header = match dib_header {
       Ok(returned_dib_header) => returned_dib_header,
       Err(e) => return Err(e),
     };
-    let pixel_data = self.get_pixel_data().unwrap();
-    let pixel: Vec<u8> = pixel_data[y][x];
+    //need to check if error
+    let pixel_data = self.get_pixel_data();
+    let pixel_data = match pixel_data {
+      Ok(returned_pixel_data) => returned_pixel_data,
+      Err(e) => return Err(e),
+    };
+    let pixel: &Vec<u8> = &pixel_data[y][x];
+    let pixel: Vec<u8> = pixel.to_vec();
     if dib_header.bitcount == 24 {
       //if 24 bit, no need to look at color table because it is rgb.
       //there is no alpha value, so it is 100 (nontransparent/opaque)
@@ -624,25 +685,41 @@ impl BMP {
       //otherwise look at color table for corresponding color. The bit (s) in the pixel data are indexes. We look up the index in the color table to find the color
       let color_table = self.get_color_table();
       let color_table = match color_table {
-        Ok(returned_dib_header) => returned_color_table,
+        Ok(returned_color_table) => returned_color_table,
         Err(e) => return Err(e),
       };
       /*enum ColorTable {
   RGBTRIPLE(Vec<[u8; 3]>),
   RGBQUAD(Vec<[u8; 4]>),
 }*/
-      //1, 2, 4 (1 byte), 8 (2 bytes), 16 (4 bytes)
+      //1, 2, 4 (half byte), 8 (1 bytes), 16 (2 bytes)
+      let index;
+      if dib_header.bitcount == 16 {
+        index = BMP::two_bytes_to_int(BMP::vec_to_2u8_array(pixel));
+      } else {
+        index = BMP::byte_to_int(pixel[0]) as u16;
+      }
+      let mut rgba: [u8; 4];
       match color_table {
         ColorTable::RGBTRIPLE(vec) => {
-          //vec[]
+          let rgb: [u8; 3] = vec[index as usize];
+          //the array is fixed size [u8; 3] we want to turn it into [u8; 4] with the 4th being 255
+          let mut rgb = rgb.to_vec();
+          rgb.push(255);
+          rgba = BMP::vec_to_4u8_array(rgb);
         },
         ColorTable::RGBQUAD(vec) => {
-          //vec[]
+          rgba = vec[index as usize];
         }
       }
+      return Ok(rgba);
     }
   }
   //edit color pixels
 }
 
 //https://docs.microsoft.com/en-us/windows/win32/wcs/basic-color-management-concepts
+
+/*RGB to written color hash table
+
+*/
