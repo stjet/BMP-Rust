@@ -35,6 +35,12 @@ impl ErrorKind {
   }
 }
 
+impl fmt::Debug for ErrorKind {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{:?}", self.as_str())
+  }
+}
+
 impl fmt::Display for ErrorKind {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "Error: {}", self.as_str())
@@ -136,31 +142,31 @@ enum DIBHEADER {
 }
 */
 
-struct DIBHEADER {
-  size: u16,
-  width: u32,
-  height: i32,
-  planes: u16,
-  bitcount: u16,
-  compression: Option<String>,
-  sizeimage: Option<u32>,
-  XPelsPerMeter: Option<u32>,
-  YPelsPerMeter: Option<u32>,
-  ClrUsed: Option<u32>,
-  ClrImportant: Option<u32>,
-  RedMask: Option<u32>,
-  GreenMask: Option<u32>,
-  BlueMask: Option<u32>,
-  AlphaMask: Option<u32>,
-  CSType: Option<String>,
-  Endpoints: Option<[[i32; 3]; 3]>,
-  GammaRed: Option<u32>,
-  GammaGreen: Option<u32>,
-  GammaBlue: Option<u32>,
-  Intent: Option<String>,
-  ProfileData: Option<u16>,
-  ProfileSize: Option<u16>,
-  Reserved: Option<Vec<u8>>,
+pub struct DIBHEADER {
+  pub size: u16,
+  pub width: u32,
+  pub height: i32,
+  pub planes: u16,
+  pub bitcount: u16,
+  pub compression: Option<String>,
+  pub sizeimage: Option<u32>,
+  pub XPelsPerMeter: Option<u32>,
+  pub YPelsPerMeter: Option<u32>,
+  pub ClrUsed: Option<u32>,
+  pub ClrImportant: Option<u32>,
+  pub RedMask: Option<u32>,
+  pub GreenMask: Option<u32>,
+  pub BlueMask: Option<u32>,
+  pub AlphaMask: Option<u32>,
+  pub CSType: Option<String>,
+  pub Endpoints: Option<[[i32; 3]; 3]>,
+  pub GammaRed: Option<u32>,
+  pub GammaGreen: Option<u32>,
+  pub GammaBlue: Option<u32>,
+  pub Intent: Option<String>,
+  pub ProfileData: Option<u16>,
+  pub ProfileSize: Option<u16>,
+  pub Reserved: Option<Vec<u8>>,
 }
 
 //rgbtriple and rgbquad
@@ -170,17 +176,17 @@ enum ColorTable {
 }
 
 //extra bit masks, these are unofficial names
-struct BI_BITFIELDS_MASKS {
-  red: u32,
-  green: u32,
-  blue: u32,
+pub struct BI_BITFIELDS_MASKS {
+  pub red: u32,
+  pub green: u32,
+  pub blue: u32,
 }
 
-struct BI_ALPHABITFIELDS_MASKS {
-  red: u32,
-  green: u32,
-  blue: u32,
-  alpha: u32,
+pub struct BI_ALPHABITFIELDS_MASKS {
+  pub red: u32,
+  pub green: u32,
+  pub blue: u32,
+  pub alpha: u32,
 }
 
 enum EXTRA_BIT_MASKS {
@@ -189,7 +195,7 @@ enum EXTRA_BIT_MASKS {
 }
 
 pub struct BMP {
-  contents: Vec<u8>,
+  pub contents: Vec<u8>,
   from_file: bool,
   //bitmap_file_header: BITMAPFILEHEADER,
   //dib_header: DIBHEADER,
@@ -214,13 +220,16 @@ impl BMP {
   fn byte_to_int(byte: u8) -> u8 {
     u8::from_le_bytes([byte])
   }
+  fn two_bytes_to_signed_int(bytes: [u8; 2]) -> i16 {
+    i16::from_le_bytes(bytes)
+  }
   fn bytes_to_signed_int(bytes: [u8; 4]) -> i32 {
     i32::from_le_bytes(bytes)
   }
   fn bytes_to_string(bytes: &[u8]) -> String {
     String::from_utf8_lossy(&bytes).to_string()
   }
-  fn num_bytes_to_kilobytes(bytes: u32) -> u32 {
+  pub fn num_bytes_to_kilobytes(bytes: u32) -> u32 {
     //1024 bytes per kilobyte
     bytes/1024
   }
@@ -247,6 +256,18 @@ impl BMP {
       array[i] = vector[i];
     }
     return array;
+  }
+  fn int_to_compression(int: u32) -> String {
+    let compression_table: HashMap<u32, String> = HashMap::from([
+      (0, "BI_RGB".to_string()),
+      (1, "BI_RLE8".to_string()),
+      (2, "BI_RLE4".to_string()),
+      (3, "BI_BITFIELDS".to_string()),
+      (4, "BI_JPEG".to_string()),
+      (5, "BI_PNG".to_string()),
+      (6, "BI_ALPHABITFIELDS".to_string())
+    ]);
+    return compression_table.get(&int).unwrap().to_string();
   }
   //color related utilities
   fn alpha_to_percentage(alpha: u8) -> f64 {
@@ -325,7 +346,7 @@ impl BMP {
     }
   }
   //dib header related
-  fn get_dib_header(&self) -> Result<DIBHEADER, ErrorKind> {
+  pub fn get_dib_header(&self) -> Result<DIBHEADER, ErrorKind> {
     //this will not work because there may be other data besides the DIB header
     //let dib_size: i32 = self.get_offset()-14;
     //instead we will read the first 4 bytes after the header, which *should* specify the DIB header size, so we can figure out what kind of header it is
@@ -336,10 +357,10 @@ impl BMP {
         //"BITMAPCOREHEADER"
         dib_header = DIBHEADER {
           size: dib_size as u16,
-          width: BMP::bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+6].try_into().unwrap()),
-          height: BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+6..HEADER_OFFSET+8].try_into().unwrap()),
-          planes: BMP::bytes_to_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+10].try_into().unwrap()) as u16,
-          bitcount: BMP::bytes_to_int(self.contents[HEADER_OFFSET+10..HEADER_OFFSET+12].try_into().unwrap()) as u16,
+          width: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+6].try_into().unwrap()) as u32,
+          height: BMP::two_bytes_to_signed_int(self.contents[HEADER_OFFSET+6..HEADER_OFFSET+8].try_into().unwrap()) as i32,
+          planes: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+10].try_into().unwrap()) as u16,
+          bitcount: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+10..HEADER_OFFSET+12].try_into().unwrap()) as u16,
           compression: None,
           sizeimage: None,
           XPelsPerMeter: None,
@@ -367,9 +388,9 @@ impl BMP {
           size: dib_size as u16,
           width: BMP::bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+8].try_into().unwrap()),
           height: BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+12].try_into().unwrap()),
-          planes: BMP::bytes_to_int(self.contents[HEADER_OFFSET+12..HEADER_OFFSET+14].try_into().unwrap()) as u16,
-          bitcount: BMP::bytes_to_int(self.contents[HEADER_OFFSET+14..HEADER_OFFSET+16].try_into().unwrap()) as u16,
-          compression: Some(BMP::bytes_to_string(&self.contents[HEADER_OFFSET+16..HEADER_OFFSET+20])),
+          planes: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+12..HEADER_OFFSET+14].try_into().unwrap()) as u16,
+          bitcount: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+14..HEADER_OFFSET+16].try_into().unwrap()) as u16,
+          compression: Some(BMP::int_to_compression(BMP::bytes_to_int(self.contents[HEADER_OFFSET+16..HEADER_OFFSET+20].try_into().unwrap()))),
           sizeimage: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+20..HEADER_OFFSET+24].try_into().unwrap())),
           XPelsPerMeter: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+24..HEADER_OFFSET+28].try_into().unwrap())),
           YPelsPerMeter: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+28..HEADER_OFFSET+32].try_into().unwrap())),
@@ -396,9 +417,9 @@ impl BMP {
           size: dib_size as u16,
           width: BMP::bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+8].try_into().unwrap()),
           height: BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+12].try_into().unwrap()),
-          planes: BMP::bytes_to_int(self.contents[HEADER_OFFSET+12..HEADER_OFFSET+14].try_into().unwrap()) as u16,
-          bitcount: BMP::bytes_to_int(self.contents[HEADER_OFFSET+14..HEADER_OFFSET+16].try_into().unwrap()) as u16,
-          compression: Some(BMP::bytes_to_string(&self.contents[HEADER_OFFSET+16..HEADER_OFFSET+20])),
+          planes: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+12..HEADER_OFFSET+14].try_into().unwrap()) as u16,
+          bitcount: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+14..HEADER_OFFSET+16].try_into().unwrap()) as u16,
+          compression: Some(BMP::int_to_compression(BMP::bytes_to_int(self.contents[HEADER_OFFSET+16..HEADER_OFFSET+20].try_into().unwrap()))),
           sizeimage: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+20..HEADER_OFFSET+24].try_into().unwrap())),
           XPelsPerMeter: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+24..HEADER_OFFSET+28].try_into().unwrap())),
           YPelsPerMeter: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+28..HEADER_OFFSET+32].try_into().unwrap())),
@@ -429,9 +450,9 @@ impl BMP {
           size: dib_size as u16,
           width: BMP::bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+8].try_into().unwrap()),
           height: BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+12].try_into().unwrap()),
-          planes: BMP::bytes_to_int(self.contents[HEADER_OFFSET+12..HEADER_OFFSET+14].try_into().unwrap()) as u16,
-          bitcount: BMP::bytes_to_int(self.contents[HEADER_OFFSET+14..HEADER_OFFSET+16].try_into().unwrap()) as u16,
-          compression: Some(BMP::bytes_to_string(&self.contents[HEADER_OFFSET+16..HEADER_OFFSET+20])),
+          planes: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+12..HEADER_OFFSET+14].try_into().unwrap()) as u16,
+          bitcount: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+14..HEADER_OFFSET+16].try_into().unwrap()) as u16,
+          compression: Some(BMP::int_to_compression(BMP::bytes_to_int(self.contents[HEADER_OFFSET+16..HEADER_OFFSET+20].try_into().unwrap()))),
           sizeimage: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+20..HEADER_OFFSET+24].try_into().unwrap())),
           XPelsPerMeter: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+24..HEADER_OFFSET+28].try_into().unwrap())),
           YPelsPerMeter: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+28..HEADER_OFFSET+32].try_into().unwrap())),
@@ -443,7 +464,7 @@ impl BMP {
           AlphaMask: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+52..HEADER_OFFSET+56].try_into().unwrap())),
           CSType: Some(BMP::bytes_to_string(&self.contents[HEADER_OFFSET+56..HEADER_OFFSET+60])),
           //rgb
-          Endpoints: Some([[BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+60..HEADER_OFFSET+64].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+64..HEADER_OFFSET+68].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+68..HEADER_OFFSET+72].try_into().unwrap())], [BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+72..HEADER_OFFSET+76].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+76..HEADER_OFFSET+80].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+80..HEADER_OFFSET+84].try_into().unwrap())], [BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+84..HEADER_OFFSET+88].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+88..HEADER_OFFSET+92].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+92..HEADER_OFFSET+96].try_into().unwrap())]]),
+          Endpoints: Some([[BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+60..HEADER_OFFSET+64].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+64..HEADER_OFFSET+68].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+68..HEADER_OFFSET+72].try_into().unwrap())],  [BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+72..HEADER_OFFSET+76].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+76..HEADER_OFFSET+80].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+80..HEADER_OFFSET+84].try_into().unwrap())], [BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+84..HEADER_OFFSET+88].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+88..HEADER_OFFSET+92].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+92..HEADER_OFFSET+96].try_into().unwrap())]]),
           GammaRed: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+96..HEADER_OFFSET+100].try_into().unwrap())),
           GammaGreen: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+100..HEADER_OFFSET+104].try_into().unwrap())),
           GammaBlue: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+104..HEADER_OFFSET+108].try_into().unwrap())),
@@ -588,18 +609,19 @@ impl BMP {
       //add rows as normal, to the back of vector
       //header.bfOffBits
       //https://en.wikipedia.org/wiki/BMP_file_format#Pixel_storage
-      let row_length = f64::from((dib_header.bitcount as u16*dib_header.width as u16/32)*4).ceil() as u16;
-      let rows_num = (self.contents.len() as u16-header.bfOffBits)/row_length;
+      let row_length = f64::from((dib_header.bitcount as u16*dib_header.width as u16/32)).ceil() as u32 * 4;
+      //this may not work if there is profile data or other stuff after image?
+      let rows_num = (self.contents.len() as u32-header.bfOffBits as u32)/row_length;
       for row_num in 0..rows_num {
-          //let row: Vec<[u8; dib_header.bitcount/4]> = Vec::new();
+        //let row: Vec<[u8; dib_header.bitcount/4]> = Vec::new();
         let mut row: VecDeque<Vec<u8>> = VecDeque::new();
         for pixel in 0..dib_header.width {
           if dib_header.bitcount >= 8 {
-            let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*((dib_header.bitcount/4) as u16);
-            row.push_back(self.contents[start as usize..(start+(dib_header.bitcount/4)) as usize].to_vec());
+            let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*((dib_header.bitcount/8) as u32);
+            row.push_back(self.contents[start as usize..(start+(dib_header.bitcount/8) as u32) as usize].to_vec());
           } else {
             //we need to do bitwise operators if the pixels are smaller than 1 byte size (1 bit, 2 bit, 4 bit)
-            let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*(((dib_header.bitcount/4) as f64).ceil() as u16);
+            let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*(((dib_header.bitcount/8) as f64).ceil() as u32);
             let byte: u8 = self.contents[start as usize];
             if dib_header.bitcount == 1 {
               let split_bits: [u8; 8] = [byte >> 7, (byte & 0b01000000) >> 6, (byte & 0b00100000) >> 5, (byte & 0b00010000) >> 4, (byte & 0b00001000) >> 3, (byte & 0b00000100) >> 2, (byte & 0b00000010) >> 1, byte & 0b00000001];
@@ -619,17 +641,18 @@ impl BMP {
     } else if dib_header.height < 0 {
       //bottom up
       //add rows to front of vector
-      let row_length = f64::from((dib_header.bitcount as u16*dib_header.width as u16/32)*4).ceil() as u16;
-      let rows_num = (self.contents.len() as u16-header.bfOffBits)/row_length;
+      //let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*((dib_header.bitcount/8) as u32);
+      let row_length = f64::from((dib_header.bitcount as u16*dib_header.width as u16/32)).ceil() as u32 * 4;
+      let rows_num = (self.contents.len() as u32-header.bfOffBits as u32)/row_length;
       for row_num in 0..rows_num {
         let mut row: VecDeque<Vec<u8>> = VecDeque::new();
         for pixel in 0..dib_header.width {
           if dib_header.bitcount >= 8 {
-            let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*((dib_header.bitcount/4) as u16);
-            row.push_front(self.contents[start as usize..(start+(dib_header.bitcount/4)) as usize].to_vec());
+            let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*((dib_header.bitcount/8) as u32);
+            row.push_front(self.contents[start as usize..(start+(dib_header.bitcount/8) as u32) as usize].to_vec());
           } else {
             //we need to do bitwise operators if the pixels are smaller than 1 byte size (1 bit, 2 bit, 4 bit)
-            let start: u16 = (header.bfOffBits as u16)+(row_num as u16)*row_length+(pixel as u16)*(((dib_header.bitcount/4) as f64).ceil() as u16);
+            let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*(((dib_header.bitcount/8) as f64).ceil() as u32);
             let byte: u8 = self.contents[start as usize];
             if dib_header.bitcount == 1 {
               let split_bits: [u8; 8] = [byte >> 7, (byte & 0b01000000) >> 6, (byte & 0b00100000) >> 5, (byte & 0b00010000) >> 4, (byte & 0b00001000) >> 3, (byte & 0b00000100) >> 2, (byte & 0b00000010) >> 1, byte & 0b00000001];
@@ -679,7 +702,7 @@ impl BMP {
   }
   //interpret color data
   //returns an array rgba (4 u8)
-  fn get_color_of_px(&self, x: usize, y: usize) -> Result<[u8; 4], ErrorKind> {
+  pub fn get_color_of_px(&self, x: usize, y: usize) -> Result<[u8; 4], ErrorKind> {
     let dib_header = self.get_dib_header();
     let dib_header = match dib_header {
       Ok(returned_dib_header) => returned_dib_header,
@@ -693,15 +716,79 @@ impl BMP {
     };
     let pixel: &Vec<u8> = &pixel_data[y][x];
     let pixel: Vec<u8> = pixel.to_vec();
-    if dib_header.bitcount == 24 {
+    //TODO: incorporate masks
+    //if more than 12 bytes dib header, there are masks
+    //RedMask, GreenMask, BlueMask, AlphaMask
+    //if BI_BITFIELDS and 16 or 24 bits
+    //also for smaller dib header (info), check to see if there are extra bit masks
+    if dib_header.bitcount == 16 {
+      let compression = dib_header.compression.unwrap();
+      if compression == "BI_BITFIELDS" && (dib_header.RedMask.is_some() && dib_header.GreenMask.is_some() && dib_header.BlueMask.is_some()) {
+        //check masks
+        //due to complexity we dont actually use the masks, we convert them into integer, and then compare size. Bigger it is, the more the one is to the left
+        let rgba: [u8; 4];
+        //these should be from extra bit masks!
+        let red_mask: u32 = dib_header.RedMask.unwrap();
+        let green_mask: u32 = dib_header.RedMask.unwrap();
+        let blue_mask: u32 = dib_header.RedMask.unwrap();
+        if red_mask < blue_mask {
+          //assume rgb
+          rgba = [BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), 255];
+        } else {
+          //assume brg
+          rgba = [BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[0]), 255];
+        }
+        return Ok(rgba);
+      } else {
+        //compression is "BI_RGB"
+        //5 for each r,g,b (15 bits + 1 per pixel)
+        //currently placeholder
+        return Ok([0, 0, 0, 255]);
+      }
+    } else if dib_header.bitcount == 24 {
       //if 24 bit, no need to look at color table because it is rgb.
       //there is no alpha value, so it is 100 (nontransparent/opaque)
-      let rgba: [u8; 4] = [BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), 255];
+      //order is BGR not RGB
+      let rgba: [u8; 4] = [BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[0]), 255];
       return Ok(rgba);
     } else if dib_header.bitcount == 32 {
       //32 means rgba
-      let rgba: [u8; 4] = [BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[3])];
-      return Ok(rgba);
+      let compression = dib_header.compression.unwrap();
+      if (compression == "BI_BITFIELDS" || compression == "BI_ALPHABITFIELDS") && (dib_header.RedMask.is_some() && dib_header.GreenMask.is_some() && dib_header.BlueMask.is_some()) {
+        //check masks
+        //due to complexity we dont actually use the masks, we convert them into integer, and then compare size. Bigger it is, the more the one is to the left
+        //placeholder
+        //determine if alpha is in front or back. determine is rgb or brg
+        let rgba: [u8; 4];
+        let red_mask: u32 = dib_header.RedMask.unwrap();
+        let green_mask: u32 = dib_header.RedMask.unwrap();
+        let blue_mask: u32 = dib_header.RedMask.unwrap();
+        let alpha_mask: u32 = dib_header.AlphaMask.unwrap();
+        if alpha_mask < red_mask {
+          println!("{} {}", alpha_mask, red_mask);
+          //alpha is in front
+          if red_mask < blue_mask {
+            //argb
+            rgba = [BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[3]), BMP::byte_to_int(pixel[0])];
+          } else {
+            //abrg
+            rgba = [BMP::byte_to_int(pixel[3]), BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[0])];
+          }
+        } else {
+          //alpha is in back
+          if red_mask < blue_mask {
+            //rgba
+            rgba = [BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[3])];
+          } else {
+            //brga
+            rgba = [BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[3])];
+          }
+        }
+        return Ok(rgba);
+      } else {
+        let rgba: [u8; 4] = [BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[3])];
+        return Ok(rgba);
+      }
     } else {
       //otherwise look at color table for corresponding color. The bit (s) in the pixel data are indexes. We look up the index in the color table to find the color
       let color_table = self.get_color_table();
@@ -709,10 +796,6 @@ impl BMP {
         Ok(returned_color_table) => returned_color_table,
         Err(e) => return Err(e),
       };
-      /*enum ColorTable {
-  RGBTRIPLE(Vec<[u8; 3]>),
-  RGBQUAD(Vec<[u8; 4]>),
-}*/
       //1, 2, 4 (half byte), 8 (1 bytes), 16 (2 bytes)
       let index;
       if dib_header.bitcount == 16 {
@@ -737,6 +820,9 @@ impl BMP {
     }
   }
   //edit color pixels
+  pub fn change_color_of_pixel(&self, x: usize, y: usize, new_color: [u8; 4]) {
+    //
+  }
 }
 
 //https://docs.microsoft.com/en-us/windows/win32/wcs/basic-color-management-concepts
