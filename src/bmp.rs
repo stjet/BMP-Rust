@@ -3,6 +3,7 @@ use std::convert::TryInto;
 use std::collections::VecDeque;
 use std::fmt;
 use std::collections::HashMap;
+use std::io::Write;
 //use std::io::ErrorKind;
 
 //support packed dibs, dibs that have no empty gaps
@@ -822,6 +823,11 @@ impl BMP {
   //edit color pixels
   pub fn change_color_of_pixel(&self, x: usize, y: usize, new_color: [u8; 4]) {
     //
+  }
+  //save image functions
+  pub fn save_to_new(self, file_path: &str) {
+    let mut new_file = fs::File::create(&std::path::Path::new(file_path)).unwrap();
+    new_file.write_all(&self.contents);
   }
 }
 

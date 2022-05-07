@@ -29,5 +29,6 @@ fn main() {
   println!("{:?}", small_file.get_color_of_px(40, 40).unwrap());
   //let ttt = u32::from_le_bytes([255, 255, 255, 255]);
   //println!("{}", ttt);
-  //println!("{}", ttt & 0b00000000111111110000000000000000);
+  //println!("{}", ttt & 0b00000000111111110000000000000000);\
+  small_file.save_to_new("src/images/e.png");
 }
