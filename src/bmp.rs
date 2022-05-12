@@ -589,7 +589,7 @@ impl BMP {
     return Ok(color_table);
   }
   //pixel array
-  fn get_pixel_data(&self) -> Result<Vec<VecDeque<Vec<u8>>>, ErrorKind> {
+  fn get_pixel_data(&self) -> Result<VecDeque<Vec<Vec<u8>>>, ErrorKind> {
     //figure out if top down or bottom up
     //let it panic if it is an error
     let dib_header = self.get_dib_header();
@@ -603,10 +603,10 @@ impl BMP {
     //monochrome is 1 bit per pixel. lets not support that for now
     //Vec<[[u8; dib_header.bitcount/4]; dib_header.width]>
     //change to array https://discord.com/channels/273534239310479360/273541522815713281/951356330696912967
-    let mut rows: Vec<VecDeque<Vec<u8>>> = Vec::new();
+    let mut rows: VecDeque<Vec<Vec<u8>>> = VecDeque::new();
     let header = self.get_header();
-    if dib_header.height > 0 && dib_header.bitcount > 8 {
-      //top up
+    if dib_header.height < 0 {
+      //top down (starts from top left)
       //add rows as normal, to the back of vector
       //header.bfOffBits
       //https://en.wikipedia.org/wiki/BMP_file_format#Pixel_storage
@@ -615,59 +615,59 @@ impl BMP {
       let rows_num = (self.contents.len() as u32-header.bfOffBits as u32)/row_length;
       for row_num in 0..rows_num {
         //let row: Vec<[u8; dib_header.bitcount/4]> = Vec::new();
-        let mut row: VecDeque<Vec<u8>> = VecDeque::new();
+        let mut row: Vec<Vec<u8>> = Vec::new();
         for pixel in 0..dib_header.width {
           if dib_header.bitcount >= 8 {
             let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*((dib_header.bitcount/8) as u32);
-            row.push_back(self.contents[start as usize..(start+(dib_header.bitcount/8) as u32) as usize].to_vec());
+            row.push(self.contents[start as usize..(start+(dib_header.bitcount/8) as u32) as usize].to_vec());
           } else {
             //we need to do bitwise operators if the pixels are smaller than 1 byte size (1 bit, 2 bit, 4 bit)
             let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*(((dib_header.bitcount/8) as f64).ceil() as u32);
             let byte: u8 = self.contents[start as usize];
             if dib_header.bitcount == 1 {
               let split_bits: [u8; 8] = [byte >> 7, (byte & 0b01000000) >> 6, (byte & 0b00100000) >> 5, (byte & 0b00010000) >> 4, (byte & 0b00001000) >> 3, (byte & 0b00000100) >> 2, (byte & 0b00000010) >> 1, byte & 0b00000001];
-              row.push_back(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
+              row.push(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
             } else if dib_header.bitcount == 2 {
               let split_bits: [u8; 4] = [byte >> 6, (byte & 0b00110000) >> 4, (byte & 0b00001100) >> 2, byte & 0b00000011];
-              row.push_back(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
+              row.push(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
             } else if dib_header.bitcount == 4 {
               let split_bits: [u8; 2] = [byte >> 4, byte & 0b00001111];
-              row.push_back(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
+              row.push(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
             }
           }
         }
-        rows.push(row);
+        rows.push_back(row);
       }
       //self.contents[]
-    } else if dib_header.height < 0 {
-      //bottom up
+    } else if dib_header.height > 0 {
+      //bottom up (starts from lower left)
       //add rows to front of vector
       //let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*((dib_header.bitcount/8) as u32);
       let row_length = f64::from((dib_header.bitcount as u16*dib_header.width as u16/32)).ceil() as u32 * 4;
       let rows_num = (self.contents.len() as u32-header.bfOffBits as u32)/row_length;
       for row_num in 0..rows_num {
-        let mut row: VecDeque<Vec<u8>> = VecDeque::new();
+        let mut row: Vec<Vec<u8>> = Vec::new();
         for pixel in 0..dib_header.width {
           if dib_header.bitcount >= 8 {
             let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*((dib_header.bitcount/8) as u32);
-            row.push_front(self.contents[start as usize..(start+(dib_header.bitcount/8) as u32) as usize].to_vec());
+            row.push(self.contents[start as usize..(start+(dib_header.bitcount/8) as u32) as usize].to_vec());
           } else {
             //we need to do bitwise operators if the pixels are smaller than 1 byte size (1 bit, 2 bit, 4 bit)
             let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*(((dib_header.bitcount/8) as f64).ceil() as u32);
             let byte: u8 = self.contents[start as usize];
             if dib_header.bitcount == 1 {
               let split_bits: [u8; 8] = [byte >> 7, (byte & 0b01000000) >> 6, (byte & 0b00100000) >> 5, (byte & 0b00010000) >> 4, (byte & 0b00001000) >> 3, (byte & 0b00000100) >> 2, (byte & 0b00000010) >> 1, byte & 0b00000001];
-              row.push_front(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
+              row.push(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
             } else if dib_header.bitcount == 2 {
               let split_bits: [u8; 4] = [byte >> 6, (byte & 0b00110000) >> 4, (byte & 0b00001100) >> 2, byte & 0b00000011];
-              row.push_front(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
+              row.push(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
             } else if dib_header.bitcount == 4 {
               let split_bits: [u8; 2] = [byte >> 4, byte & 0b00001111];
-              row.push_front(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
+              row.push(vec![split_bits[(pixel % ((8/dib_header.bitcount) as u32)) as usize]]);
             }
           }
         }
-        rows.push(row);
+        rows.push_front(row);
       }
     }
     return Ok(rows);
@@ -820,10 +820,51 @@ impl BMP {
       return Ok(rgba);
     }
   }
-  //edit color pixels
-  pub fn change_color_of_pixel(&self, x: usize, y: usize, new_color: [u8; 4]) {
-    //
+  //edit color pixels, only supports 24 and 32 bit
+  pub fn change_color_of_pixel(&mut self, x: u16, mut y: u16, new_color: [u8; 4]) -> Result<(), ErrorKind> {
+    //todo: top down or bottom down?
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    let header = self.get_header();
+    //bits per pixel
+    let bitcount = dib_header.bitcount;
+    //only 24 and 32 bit
+    if bitcount != 24 && bitcount != 32 {
+      //return error
+      return Err(ErrorKind::Unsupported);
+    }
+    //depending on if top down or bottom up, adjust  y
+    if dib_header.height > 0 {
+      //bottom up
+      y = dib_header.height as u16 - y;
+    }
+    //calculate row width (bytes)
+    let row_length = (f64::from(((bitcount/8) as u16*dib_header.width as u16/4)).ceil() as u32 * 4) as u16;
+    //amount of rows in front = y
+    //add offset bits: header.bfOffBits (actually bytes)
+    let start = y*row_length+header.bfOffBits+(bitcount/8)*x;
+    //get indexes to change
+    //self.contents
+    //change the contents
+    if bitcount == 24 {
+      //3 bytes
+      self.contents[start as usize] = new_color[0];
+      self.contents[(start+1) as usize] = new_color[1];
+      self.contents[(start+2) as usize] = new_color[2];
+    } else if bitcount == 32 {
+      //4 bytes
+      self.contents[start as usize] = new_color[0];
+      self.contents[(start+1) as usize] = new_color[1];
+      self.contents[(start+2) as usize] = new_color[2];
+      self.contents[(start+3) as usize] = new_color[3];
+    }
+    return Ok(());
   }
+  //image editing functions
+  //shape, line making functions
   //save image functions
   pub fn save_to_new(self, file_path: &str) {
     let mut new_file = fs::File::create(&std::path::Path::new(file_path)).unwrap();

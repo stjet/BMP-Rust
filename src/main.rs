@@ -21,14 +21,17 @@ fn main() {
     //
   }*/
   println!("Smaller file opened");
-  let small_file = BMP::new_from_file("src/images/small_example.bmp");
+  //pixel data seems to start from bottom left
+  let mut small_file = BMP::new_from_file("src/images/small_example.bmp");
   //these are currently brg instead of rgb
   println!("{:?}", small_file.get_color_of_px(10, 10).unwrap());
-  println!("{:?}", small_file.get_color_of_px(10, 40).unwrap());
   println!("{:?}", small_file.get_color_of_px(40, 10).unwrap());
+  println!("{:?}", small_file.get_color_of_px(10, 40).unwrap());
   println!("{:?}", small_file.get_color_of_px(40, 40).unwrap());
   //let ttt = u32::from_le_bytes([255, 255, 255, 255]);
   //println!("{}", ttt);
   //println!("{}", ttt & 0b00000000111111110000000000000000);\
+  //test color changing
+  small_file.change_color_of_pixel(10, 10, [233, 71, 255, 255]);
   small_file.save_to_new("src/images/e.png");
 }
