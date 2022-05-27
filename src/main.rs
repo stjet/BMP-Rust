@@ -33,5 +33,9 @@ fn main() {
   //println!("{}", ttt & 0b00000000111111110000000000000000);\
   //test color changing
   small_file.change_color_of_pixel(10, 10, [233, 71, 255, 255]);
-  small_file.save_to_new("src/images/e.png");
+  small_file.save_to_new("src/images/e.bmp");
+  let mut small_file2 = BMP::new_from_file("src/images/e.bmp");
+  //fill color may not be right
+  small_file2.fill_bucket([155, 42, 66, 255], 35, 40);
+  small_file2.save_to_new("src/images/e2.bmp");
 }

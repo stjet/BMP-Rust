@@ -766,13 +766,13 @@ impl BMP {
         let blue_mask: u32 = dib_header.RedMask.unwrap();
         let alpha_mask: u32 = dib_header.AlphaMask.unwrap();
         if alpha_mask < red_mask {
-          println!("{} {}", alpha_mask, red_mask);
+          //println!("{} {}", alpha_mask, red_mask);
           //alpha is in front
           if red_mask < blue_mask {
             //argb
             rgba = [BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[3]), BMP::byte_to_int(pixel[0])];
           } else {
-            //abrg
+            //abgr
             rgba = [BMP::byte_to_int(pixel[3]), BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[0])];
           }
         } else {
@@ -781,7 +781,7 @@ impl BMP {
             //rgba
             rgba = [BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[3])];
           } else {
-            //brga
+            //bgra
             rgba = [BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[3])];
           }
         }
@@ -822,6 +822,7 @@ impl BMP {
   }
   //edit color pixels, only supports 24 and 32 bit
   pub fn change_color_of_pixel(&mut self, x: u16, mut y: u16, new_color: [u8; 4]) -> Result<(), ErrorKind> {
+    //NEW_COLOR IS FLIPPED! See get color from pixel and get the correct order like in get_color_of_px
     //todo: top down or bottom down?
     let dib_header = self.get_dib_header();
     let dib_header = match dib_header {
@@ -850,21 +851,174 @@ impl BMP {
     //self.contents
     //change the contents
     if bitcount == 24 {
+      //order is BGR not RGB
       //3 bytes
-      self.contents[start as usize] = new_color[0];
+      self.contents[start as usize] = new_color[2];
       self.contents[(start+1) as usize] = new_color[1];
-      self.contents[(start+2) as usize] = new_color[2];
+      self.contents[(start+2) as usize] = new_color[0];
     } else if bitcount == 32 {
+      let red_mask: u32 = dib_header.RedMask.unwrap();
+      let green_mask: u32 = dib_header.RedMask.unwrap();
+      let blue_mask: u32 = dib_header.RedMask.unwrap();
+      let alpha_mask: u32 = dib_header.AlphaMask.unwrap();
       //4 bytes
-      self.contents[start as usize] = new_color[0];
-      self.contents[(start+1) as usize] = new_color[1];
-      self.contents[(start+2) as usize] = new_color[2];
-      self.contents[(start+3) as usize] = new_color[3];
+      if alpha_mask < red_mask {
+        //alpha in front
+        if red_mask < blue_mask {
+          //argb
+          self.contents[start as usize] = new_color[3];
+          self.contents[(start+1) as usize] = new_color[0];
+          self.contents[(start+2) as usize] = new_color[1];
+          self.contents[(start+3) as usize] = new_color[2];
+        } else {
+          //abgr
+          self.contents[start as usize] = new_color[3];
+          self.contents[(start+1) as usize] = new_color[2];
+          self.contents[(start+2) as usize] = new_color[1];
+          self.contents[(start+3) as usize] = new_color[0];
+        }
+      } else {
+        //alpha in back
+        if red_mask < blue_mask {
+          //rgba
+          self.contents[start as usize] = new_color[0];
+          self.contents[(start+1) as usize] = new_color[1];
+          self.contents[(start+2) as usize] = new_color[2];
+          self.contents[(start+3) as usize] = new_color[3];
+        } else {
+          //bgra
+          self.contents[start as usize] = new_color[2];
+          self.contents[(start+1) as usize] = new_color[1];
+          self.contents[(start+2) as usize] = new_color[0];
+          self.contents[(start+3) as usize] = new_color[3];
+        }
+      }
     }
     return Ok(());
   }
   //image editing functions
+  pub fn draw_image(&self, bmp2: BMP) {
+    //
+  }
+  pub fn filter(&self) {
+    //add/subtract to r,g,b for each pixel?
+    //masking
+  }
   //shape, line making functions
+  pub fn draw_line(&self, fill: Option<[u8; 4]>, p1: [u16; 2], p2: [u16; 2]) {
+    if p1[0] == p2[0] {
+      //x matches x, straight vertical line
+      for ay in 0..(p2[0]-p1[0]).abs() {
+        //if p1 is to the left of p2
+        if p1[0] < p2[0] {
+          self.change_color_of_pixel(p1[0], p1[1]+ay, fill);
+        } else {
+          self.change_color_of_pixel(p2[0], p2[1]+ay, fill);
+        }
+      }
+    } else if p1[1] == p2[1] {
+      //y matches y, straight horizontal line
+      for ax in 0..(p2[1]-p1[1]).abs() {
+        //if p1 is above p2
+        if p1[1] < p2[1] {
+          self.change_color_of_pixel(p1[0]+ax, p1[1], fill);
+        } else {
+          self.change_color_of_pixel(p2[0]+ax, p2[1], fill);
+        }
+      }
+    } else {
+      //
+    }
+    //
+  }
+  pub fn draw_rectangle(&self, fill: Option<[u8; 4]>, stroke: Option<[u8; 4]>, p1: [u16; 2], p2: [u16; 2]) {
+    //
+  }
+  pub fn draw_ellipse(&self, fill: Option<[u8; 4]>, stroke: Option<[u8; 4]>, center: [u16; 2], xlength: u16, ylength: u16) {
+    //
+  }
+  //BUGGY
+  pub fn fill_bucket(&mut self, fill: [u8; 4], x: usize, y: usize) -> Result<Vec<[u16; 2]>, ErrorKind> {
+    //fill same color connected to the (x,y) with new paint
+    //check up, down, left, right. If same color as initial square, add to queue. Iterate through queue, after iterating add to visit and repeat
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    let replace_color = self.get_color_of_px(x as usize, y as usize);
+    let replace_color: [u8; 4] = match replace_color {
+      Ok(returned_replace_color) => returned_replace_color,
+      Err(e) => return Err(e),
+    };
+    let mut visited: Vec<[u16; 2]> = Vec::new();
+    let mut queue: Vec<[u16; 2]> = Vec::new();
+    queue.push([x as u16, y as u16]);
+    while queue.len() > 0 {
+      if visited.contains(&queue[0]) {
+        queue.remove(0);
+        continue;
+      }
+      let x2: u16 = queue[0][0];
+      let y2: u16 = queue[0][1];
+      //turn current coords into fill color
+      //self.change_color_of_pixel(x2, y2, fill);
+      //check is surrounding (up, down, left, right) are same color
+      //check to make sure these coords exist. (get height, width)
+      //remember, indexes start at 0
+      if y2+1 < dib_header.height as u16 {
+        let down_color = self.get_color_of_px(x2 as usize, (y2+1) as usize);
+        let down_color: [u8; 4] = match down_color {
+          Ok(returned_down_color) => returned_down_color,
+          Err(e) => return Err(e),
+        };
+        if down_color == replace_color {
+          queue.push([x2 as u16, y2+1 as u16]);
+        }
+      }
+      if y2-1 > 0 {
+        //does not go all the way to up color
+        let up_color = self.get_color_of_px(x2 as usize, (y2-1) as usize);
+        let up_color: [u8; 4] = match up_color {
+          Ok(returned_up_color) => returned_up_color,
+          Err(e) => return Err(e),
+        };
+        if up_color == replace_color {
+          queue.push([x2 as u16, y2-1 as u16]);
+        }
+      }
+      if x2-1 > 0 {
+        let left_color = self.get_color_of_px((x2-1) as usize, y2 as usize);
+        let left_color: [u8; 4] = match left_color {
+          Ok(returned_left_color) => returned_left_color,
+          Err(e) => return Err(e),
+        };
+        if left_color == replace_color {
+          queue.push([x2-1 as u16, y2 as u16]);
+        }
+      }
+      if x2+1 < dib_header.width as u16 {
+        let right_color = self.get_color_of_px((x2+1) as usize, y2 as usize);
+        let right_color: [u8; 4] = match right_color {
+          Ok(returned_right_color) => returned_right_color,
+          Err(e) => return Err(e),
+        };
+        if right_color == replace_color {
+          queue.push([x2+1 as u16, y2 as u16]);
+        }
+      }
+      //end
+      visited.push(queue[0]);
+      queue.remove(0);
+    }
+    //loop through visited
+    for px in &visited {
+      //move the y up by one and things magically work. dunno why, but it works.
+      self.change_color_of_pixel(px[0], px[1]+1, fill);
+    }
+    //&self.save_to_new("src/images/e2.bmp");
+    return Ok(visited);
+  }
   //save image functions
   pub fn save_to_new(self, file_path: &str) {
     let mut new_file = fs::File::create(&std::path::Path::new(file_path)).unwrap();
@@ -874,6 +1028,4 @@ impl BMP {
 
 //https://docs.microsoft.com/en-us/windows/win32/wcs/basic-color-management-concepts
 
-/*RGB to written color hash table
-
-*/
+/*RGB to written color hash table*/
