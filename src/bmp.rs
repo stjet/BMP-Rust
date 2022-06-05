@@ -897,18 +897,18 @@ impl BMP {
     return Ok(());
   }
   //image editing functions
-  pub fn draw_image(&self, bmp2: BMP) {
+  pub fn draw_image(&mut self, bmp2: BMP) {
     //
   }
-  pub fn filter(&self) {
+  pub fn filter(&mut self) {
     //add/subtract to r,g,b for each pixel?
     //masking
   }
   //shape, line making functions
-  pub fn draw_line(&self, fill: Option<[u8; 4]>, p1: [u16; 2], p2: [u16; 2]) {
+  pub fn draw_line(&mut self, fill: [u8; 4], p1: [u16; 2], p2: [u16; 2]) {
     if p1[0] == p2[0] {
       //x matches x, straight vertical line
-      for ay in 0..(p2[0]-p1[0]).abs() {
+      for ay in 0..(p2[0] as i16 - p1[0] as i16).abs() as u16 {
         //if p1 is to the left of p2
         if p1[0] < p2[0] {
           self.change_color_of_pixel(p1[0], p1[1]+ay, fill);
@@ -918,7 +918,7 @@ impl BMP {
       }
     } else if p1[1] == p2[1] {
       //y matches y, straight horizontal line
-      for ax in 0..(p2[1]-p1[1]).abs() {
+      for ax in 0..(p2[1] as i16 - p1[1] as i16).abs() as u16 {
         //if p1 is above p2
         if p1[1] < p2[1] {
           self.change_color_of_pixel(p1[0]+ax, p1[1], fill);
@@ -927,14 +927,95 @@ impl BMP {
         }
       }
     } else {
-      //
+      let vertical_diff: u16 = (p2[1] as i16 -p1[1] as i16).abs() as u16;
+      let horizontal_diff: u16 = (p2[0] as i16 - p1[0] as i16).abs() as u16;
+      //get left most point
+      let leftmost_p;
+      let rightmost_p;
+      if p1[0] < p2[0] {
+        leftmost_p = p1;
+        rightmost_p = p2;
+      } else {
+        leftmost_p = p2;
+        rightmost_p = p1;
+      }
+      let highest_p;
+      let lowest_p;
+      if p1[1] < p2[1] {
+        highest_p = p1;
+        lowest_p = p2;
+      } else {
+        highest_p = p2;
+        lowest_p = p1;
+      }
+      //if vertical equal or more than 2
+      if vertical_diff >= 2 {
+        // middle segments = floor horizontal/vertical
+        let middle_segment_length: u16 = f64::from(horizontal_diff/vertical_diff).floor() as u16;
+        // two ends = horizontal - (middle segments * (vertical-2))
+        let two_ends_combined_length = horizontal_diff - (middle_segment_length*(vertical_diff-2));
+        // each end should be two ends / 2
+        // if two ends = 1, make first end 1 and subtract 1 from last segment and give to last end
+        if two_ends_combined_length == 1 {
+          let end_segment_length = two_ends_combined_length/2;
+          //first segment
+          //leftmost_p
+          self.change_color_of_pixel(leftmost_p[0], leftmost_p[1], fill);
+          //middle segments
+          for j in 0..(vertical_diff-2) {
+            for ji in 0..middle_segment_length {
+              //if last pixel of last segment
+              if j == vertical_diff-3 && ji == middle_segment_length-1 {
+                continue;
+              }
+              if highest_p == leftmost_p {
+                self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]+j, fill);
+              } else {
+                self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]-j, fill);
+              }
+            }
+          }
+          //last segment
+          self.change_color_of_pixel(rightmost_p[0], rightmost_p[1], fill);
+        } else {
+          let end_segment_length = two_ends_combined_length/2;
+          //first segment
+          //leftmost_p
+          for i in 0..end_segment_length {
+            self.change_color_of_pixel(leftmost_p[0]+i, leftmost_p[1], fill);
+          }
+          //middle segments
+          for j in 0..(vertical_diff-2) {
+            for ji in 0..middle_segment_length {
+              if highest_p == leftmost_p {
+                self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]+j, fill);
+              } else {
+                self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]-j, fill);
+              }
+            }
+          }
+          //last segment
+          for k in 0..end_segment_length {
+            self.change_color_of_pixel(rightmost_p[0]-k, rightmost_p[1], fill);
+          }
+        }
+      } else {
+        //if vertical diff is 1, divide in half. if decimal, floor and ceil, those are the two segments. else, two segments are equal length
+        let first_segment: u16 = (f64::from(horizontal_diff/2)).floor() as u16;
+        let second_segment: u16 = (f64::from(horizontal_diff/2)).ceil() as u16;
+        for i in 0..first_segment {
+          self.change_color_of_pixel(leftmost_p[0]+i, leftmost_p[1], fill);
+        }
+        for j in 0..second_segment {
+          self.change_color_of_pixel(rightmost_p[0]-j, rightmost_p[1], fill);
+        }
+      }
     }
+  }
+  pub fn draw_rectangle(&mut self, fill: Option<[u8; 4]>, stroke: Option<[u8; 4]>, p1: [u16; 2], p2: [u16; 2]) {
     //
   }
-  pub fn draw_rectangle(&self, fill: Option<[u8; 4]>, stroke: Option<[u8; 4]>, p1: [u16; 2], p2: [u16; 2]) {
-    //
-  }
-  pub fn draw_ellipse(&self, fill: Option<[u8; 4]>, stroke: Option<[u8; 4]>, center: [u16; 2], xlength: u16, ylength: u16) {
+  pub fn draw_ellipse(&mut self, fill: Option<[u8; 4]>, stroke: Option<[u8; 4]>, center: [u16; 2], xlength: u16, ylength: u16) {
     //
   }
   //BUGGY
