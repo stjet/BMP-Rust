@@ -32,10 +32,31 @@ fn main() {
   //println!("{}", ttt);
   //println!("{}", ttt & 0b00000000111111110000000000000000);\
   //test color changing
+  //y starts at 1 x starts at 0
   small_file.change_color_of_pixel(10, 10, [233, 71, 255, 255]);
   small_file.save_to_new("src/images/e.bmp");
   let mut small_file2 = BMP::new_from_file("src/images/e.bmp");
   //fill color may not be right
   small_file2.fill_bucket([155, 42, 66, 255], 35, 40);
   small_file2.save_to_new("src/images/e2.bmp");
+  println!("Draw line test");
+  //bug: coords are WRONG
+  let mut small_file3 = BMP::new_from_file("src/images/small_example.bmp");
+  small_file3.draw_line([233, 30, 99, 255], [5, 3], [5, 29]);
+  small_file3.draw_line([233, 30, 99, 255], [15, 40], [5, 40]);
+  small_file3.save_to_new("src/images/line_test1.bmp");
+  let mut small_file4 = BMP::new_from_file("src/images/small_example.bmp");
+  small_file4.draw_line([233, 30, 99, 255], [1, 2], [40, 2]);
+  small_file4.save_to_new("src/images/line_test2.bmp");
+  /**/
+  let mut small_file5 = BMP::new_from_file("src/images/small_example.bmp");
+  small_file5.draw_line([233, 30, 99, 255], [3, 3], [14, 12]);
+  small_file5.save_to_new("src/images/line_test3.bmp");
+  //draw_line(&mut self, fill: [u8; 4], p1: [u16; 2], p2: [u16; 2]);
+  //draw_line(&mut self, fill: [u8; 4], [0, 0], [52, 52])
+  //draw_line(&mut self, fill: [u8; 4], [5, 5], [17, 5])
+  //draw_line(&mut self, fill: [u8; 4], [5, 5], [5, 17])
+  //draw_line(&mut self, fill: [u8; 4], [4, 7], [9, 12])
+  //draw_line(&mut self, fill: [u8; 4], [8, 25], [40, 29])
+  //draw_line(&mut self, fill: [u8; 4], [8, 43], [40, 44])
 }

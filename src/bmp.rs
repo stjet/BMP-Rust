@@ -766,7 +766,6 @@ impl BMP {
         let blue_mask: u32 = dib_header.RedMask.unwrap();
         let alpha_mask: u32 = dib_header.AlphaMask.unwrap();
         if alpha_mask < red_mask {
-          //println!("{} {}", alpha_mask, red_mask);
           //alpha is in front
           if red_mask < blue_mask {
             //argb
@@ -908,9 +907,9 @@ impl BMP {
   pub fn draw_line(&mut self, fill: [u8; 4], p1: [u16; 2], p2: [u16; 2]) {
     if p1[0] == p2[0] {
       //x matches x, straight vertical line
-      for ay in 0..(p2[0] as i16 - p1[0] as i16).abs() as u16 {
-        //if p1 is to the left of p2
-        if p1[0] < p2[0] {
+      for ay in 0..(p2[1] as i16 - p1[1] as i16).abs() as u16 {
+        //if p1 is below p2
+        if p1[1] < p2[1] {
           self.change_color_of_pixel(p1[0], p1[1]+ay, fill);
         } else {
           self.change_color_of_pixel(p2[0], p2[1]+ay, fill);
@@ -918,9 +917,9 @@ impl BMP {
       }
     } else if p1[1] == p2[1] {
       //y matches y, straight horizontal line
-      for ax in 0..(p2[1] as i16 - p1[1] as i16).abs() as u16 {
-        //if p1 is above p2
-        if p1[1] < p2[1] {
+      for ax in 0..(p2[0] as i16 - p1[0] as i16).abs() as u16 {
+        //if p1 is to the left of p2
+        if p1[0] < p2[0] {
           self.change_color_of_pixel(p1[0]+ax, p1[1], fill);
         } else {
           self.change_color_of_pixel(p2[0]+ax, p2[1], fill);
@@ -929,6 +928,7 @@ impl BMP {
     } else {
       let vertical_diff: u16 = (p2[1] as i16 -p1[1] as i16).abs() as u16;
       let horizontal_diff: u16 = (p2[0] as i16 - p1[0] as i16).abs() as u16;
+      println!("{} {}", vertical_diff, horizontal_diff);
       //get left most point
       let leftmost_p;
       let rightmost_p;
@@ -939,6 +939,7 @@ impl BMP {
         leftmost_p = p2;
         rightmost_p = p1;
       }
+      println!("{:?} {:?}", leftmost_p, rightmost_p);
       let highest_p;
       let lowest_p;
       if p1[1] < p2[1] {
@@ -948,12 +949,14 @@ impl BMP {
         highest_p = p2;
         lowest_p = p1;
       }
+      println!("{:?} {:?}", highest_p, lowest_p);
       //if vertical equal or more than 2
       if vertical_diff >= 2 {
         // middle segments = floor horizontal/vertical
         let middle_segment_length: u16 = f64::from(horizontal_diff/vertical_diff).floor() as u16;
         // two ends = horizontal - (middle segments * (vertical-2))
         let two_ends_combined_length = horizontal_diff - (middle_segment_length*(vertical_diff-2));
+        println!("middle {} combined {}", middle_segment_length, two_ends_combined_length);
         // each end should be two ends / 2
         // if two ends = 1, make first end 1 and subtract 1 from last segment and give to last end
         if two_ends_combined_length == 1 {
@@ -985,10 +988,12 @@ impl BMP {
             self.change_color_of_pixel(leftmost_p[0]+i, leftmost_p[1], fill);
           }
           //middle segments
-          for j in 0..(vertical_diff-2) {
+          for j in 0..(vertical_diff-1) {
             for ji in 0..middle_segment_length {
               if highest_p == leftmost_p {
-                self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]+j, fill);
+                println!("j {} ji {}", j, ji);
+                println!("{} {}", leftmost_p[0]+ji+1+j*middle_segment_length, leftmost_p[1]+j+(end_segment_length-1));
+                self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length+end_segment_length, leftmost_p[1]+j+1, fill);
               } else {
                 self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]-j, fill);
               }
