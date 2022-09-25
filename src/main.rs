@@ -45,18 +45,18 @@ fn main() {
   let mut small_file3 = BMP::new_from_file("src/images/small_example.bmp");
   small_file3.draw_line([233, 30, 99, 255], [5, 3], [5, 29]);
   small_file3.draw_line([233, 30, 99, 255], [15, 40], [5, 40]);
+  small_file3.draw_line([233, 30, 99, 255], [1, 2], [40, 2]);
   small_file3.save_to_new("src/images/line_test1.bmp");
   let mut small_file4 = BMP::new_from_file("src/images/small_example.bmp");
-  small_file4.draw_line([233, 30, 99, 255], [1, 2], [40, 2]);
+  small_file4.draw_line([233, 30, 99, 255], [3, 3], [14, 12]);
+  small_file4.draw_line([100, 65, 45, 255], [20, 20], [52, 52]);
   small_file4.save_to_new("src/images/line_test2.bmp");
+  println!("Final draw line test");
   let mut small_file5 = BMP::new_from_file("src/images/small_example.bmp");
-  small_file5.draw_line([233, 30, 99, 255], [3, 3], [14, 12]);
-  small_file5.draw_line([100, 65, 45, 255], [20, 20], [52, 52]);
+  small_file5.draw_line([125, 125, 170, 255], [4, 7], [8, 9]);
+  small_file5.draw_line([255, 255, 255, 255], [8, 25], [40, 29]);
+  small_file5.draw_line([0, 255, 0, 255], [8, 43], [40, 44]);
+  small_file5.draw_line([0, 120, 11, 255], [35, 2], [36, 12]);
+  small_file5.draw_line([100, 65, 45, 255], [4, 20], [7, 37]);
   small_file5.save_to_new("src/images/line_test3.bmp");
-  let mut small_file6 = BMP::new_from_file("src/images/small_example.bmp");
-  //still have some problems
-  small_file6.draw_line([125, 125, 170, 255], [4, 7], [8, 9]);
-  small_file6.draw_line([255, 255, 255, 255], [8, 25], [40, 29]);
-  small_file6.draw_line([0, 255, 0, 255], [8, 43], [40, 44]);
-  small_file6.save_to_new("src/images/line_test4.bmp");
 }

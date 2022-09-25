@@ -926,8 +926,8 @@ impl BMP {
         }
       }
     } else {
-      let vertical_diff: u16 = (p2[1] as i16 -p1[1] as i16).abs() as u16;
-      let horizontal_diff: u16 = (p2[0] as i16 - p1[0] as i16).abs() as u16;
+      let vertical_diff: u16 = ((p2[1] as i16 -p1[1] as i16).abs() + 1) as u16;
+      let horizontal_diff: u16 = ((p2[0] as i16 - p1[0] as i16).abs() + 1) as u16;
       //get left most point
       let leftmost_p;
       let rightmost_p;
@@ -947,12 +947,22 @@ impl BMP {
         highest_p = p2;
         lowest_p = p1;
       }
-      //if vertical equal or more than 2
+      //if vertical equal or more than 2, there will be middle segments
       if vertical_diff >= 2 {
-        // middle segments = floor horizontal/vertical
-        let middle_segment_length: u16 = f64::from(horizontal_diff/vertical_diff).floor() as u16;
-        // two ends = horizontal - (middle segments * (vertical-2))
-        let two_ends_combined_length = horizontal_diff - (middle_segment_length*(vertical_diff-2));
+        let mut middle_segment_length: u16;
+        let mut two_ends_combined_length;
+        if horizontal_diff >= vertical_diff {
+          // middle segments = floor horizontal/vertical
+          middle_segment_length = f64::from((horizontal_diff)/(vertical_diff)).floor() as u16;
+          // two ends = horizontal - (middle segments * (vertical-2))
+          two_ends_combined_length = horizontal_diff - (middle_segment_length*(vertical_diff-2));
+        } else {
+          //else vertical_diff > horizontal_diff
+          // middle segments = floor vertical/horizontal
+          middle_segment_length = f64::from((vertical_diff)/(horizontal_diff)).floor() as u16;
+          // two ends = vertical - (middle segments * (horizontal-2))
+          two_ends_combined_length = vertical_diff - (middle_segment_length*(horizontal_diff-2));
+        }
         // each end should be two ends / 2
         // if two ends = 1, make first end 1 and subtract 1 from last segment and give to last end
         if two_ends_combined_length == 1 {
@@ -976,7 +986,7 @@ impl BMP {
           }
           //last segment
           self.change_color_of_pixel(rightmost_p[0], rightmost_p[1], fill);
-        } else {
+        } else if horizontal_diff >= vertical_diff {
           let end_segment_length = two_ends_combined_length/2;
           //first segment
           //leftmost_p
@@ -984,7 +994,7 @@ impl BMP {
             self.change_color_of_pixel(leftmost_p[0]+i, leftmost_p[1], fill);
           }
           //middle segments
-          for j in 0..(vertical_diff-1) {
+          for j in 0..(vertical_diff-2) {
             for ji in 0..middle_segment_length {
               if highest_p == leftmost_p {
                 self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length+end_segment_length, leftmost_p[1]+j+1, fill);
@@ -995,7 +1005,30 @@ impl BMP {
           }
           //last segment
           for k in 0..end_segment_length {
-            self.change_color_of_pixel(rightmost_p[0]-k, rightmost_p[1], fill);
+            self.change_color_of_pixel(lowest_p[0]-k, lowest_p[1], fill);
+          }
+        } else if horizontal_diff < vertical_diff {
+          let end_segment_length = two_ends_combined_length/2;
+          //first segment
+          //leftmost_p
+          for i in 0..end_segment_length {
+            self.change_color_of_pixel(leftmost_p[0], leftmost_p[1]+i, fill);
+          }
+          //middle segments
+          for j in 0..(horizontal_diff-2) {
+            for ji in 0..middle_segment_length {
+              if highest_p == leftmost_p {
+                //self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length+end_segment_length, leftmost_p[1]+j+1, fill);
+                self.change_color_of_pixel(leftmost_p[0]+j+1, leftmost_p[1]+ji+j*middle_segment_length+end_segment_length, fill);
+              } else {
+                //self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]-j, fill);
+                self.change_color_of_pixel(leftmost_p[0]-j, rightmost_p[1]+ji+j*middle_segment_length, fill);
+              }
+            }
+          }
+          //last segment
+          for k in 0..end_segment_length {
+            self.change_color_of_pixel(rightmost_p[0], rightmost_p[1]-k, fill);
           }
         }
       } else {
