@@ -839,7 +839,7 @@ impl BMP {
     //depending on if top down or bottom up, adjust  y
     if dib_header.height > 0 {
       //bottom up
-      y = dib_header.height as u16 - y;
+      y = dib_header.height as u16 - y - 1;
     }
     //calculate row width (bytes)
     let row_length = (f64::from(((bitcount/8) as u16*dib_header.width as u16/4)).ceil() as u32 * 4) as u16;
@@ -928,7 +928,6 @@ impl BMP {
     } else {
       let vertical_diff: u16 = (p2[1] as i16 -p1[1] as i16).abs() as u16;
       let horizontal_diff: u16 = (p2[0] as i16 - p1[0] as i16).abs() as u16;
-      println!("{} {}", vertical_diff, horizontal_diff);
       //get left most point
       let leftmost_p;
       let rightmost_p;
@@ -939,7 +938,6 @@ impl BMP {
         leftmost_p = p2;
         rightmost_p = p1;
       }
-      println!("{:?} {:?}", leftmost_p, rightmost_p);
       let highest_p;
       let lowest_p;
       if p1[1] < p2[1] {
@@ -949,14 +947,12 @@ impl BMP {
         highest_p = p2;
         lowest_p = p1;
       }
-      println!("{:?} {:?}", highest_p, lowest_p);
       //if vertical equal or more than 2
       if vertical_diff >= 2 {
         // middle segments = floor horizontal/vertical
         let middle_segment_length: u16 = f64::from(horizontal_diff/vertical_diff).floor() as u16;
         // two ends = horizontal - (middle segments * (vertical-2))
         let two_ends_combined_length = horizontal_diff - (middle_segment_length*(vertical_diff-2));
-        println!("middle {} combined {}", middle_segment_length, two_ends_combined_length);
         // each end should be two ends / 2
         // if two ends = 1, make first end 1 and subtract 1 from last segment and give to last end
         if two_ends_combined_length == 1 {
@@ -991,8 +987,6 @@ impl BMP {
           for j in 0..(vertical_diff-1) {
             for ji in 0..middle_segment_length {
               if highest_p == leftmost_p {
-                println!("j {} ji {}", j, ji);
-                println!("{} {}", leftmost_p[0]+ji+1+j*middle_segment_length, leftmost_p[1]+j+(end_segment_length-1));
                 self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length+end_segment_length, leftmost_p[1]+j+1, fill);
               } else {
                 self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]-j, fill);
@@ -1099,8 +1093,7 @@ impl BMP {
     }
     //loop through visited
     for px in &visited {
-      //move the y up by one and things magically work. dunno why, but it works.
-      self.change_color_of_pixel(px[0], px[1]+1, fill);
+      self.change_color_of_pixel(px[0], px[1], fill);
     }
     //&self.save_to_new("src/images/e2.bmp");
     return Ok(visited);

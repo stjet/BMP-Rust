@@ -16,10 +16,11 @@ fn main() {
   }
   //println!("{:?}", file.get_color_of_px(0, 0).unwrap());
   //test color functions
-  /*let pixel_data = file.get_pixel_data();
+  /*
+  let pixel_data = file.get_pixel_data();
   if let Ok(unwrapped_pixel_data) = pixel_data {
-    //
-  }*/
+  }
+  */
   println!("Smaller file opened");
   //pixel data seems to start from bottom left
   let mut small_file = BMP::new_from_file("src/images/small_example.bmp");
@@ -48,15 +49,14 @@ fn main() {
   let mut small_file4 = BMP::new_from_file("src/images/small_example.bmp");
   small_file4.draw_line([233, 30, 99, 255], [1, 2], [40, 2]);
   small_file4.save_to_new("src/images/line_test2.bmp");
-  /**/
   let mut small_file5 = BMP::new_from_file("src/images/small_example.bmp");
   small_file5.draw_line([233, 30, 99, 255], [3, 3], [14, 12]);
+  small_file5.draw_line([100, 65, 45, 255], [20, 20], [52, 52]);
   small_file5.save_to_new("src/images/line_test3.bmp");
-  //draw_line(&mut self, fill: [u8; 4], p1: [u16; 2], p2: [u16; 2]);
-  //draw_line(&mut self, fill: [u8; 4], [0, 0], [52, 52])
-  //draw_line(&mut self, fill: [u8; 4], [5, 5], [17, 5])
-  //draw_line(&mut self, fill: [u8; 4], [5, 5], [5, 17])
-  //draw_line(&mut self, fill: [u8; 4], [4, 7], [9, 12])
-  //draw_line(&mut self, fill: [u8; 4], [8, 25], [40, 29])
-  //draw_line(&mut self, fill: [u8; 4], [8, 43], [40, 44])
+  let mut small_file6 = BMP::new_from_file("src/images/small_example.bmp");
+  //still have some problems
+  small_file6.draw_line([125, 125, 170, 255], [4, 7], [8, 9]);
+  small_file6.draw_line([255, 255, 255, 255], [8, 25], [40, 29]);
+  small_file6.draw_line([0, 255, 0, 255], [8, 43], [40, 44]);
+  small_file6.save_to_new("src/images/line_test4.bmp");
 }
