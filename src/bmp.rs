@@ -1005,7 +1005,7 @@ impl BMP {
           }
           //last segment
           for k in 0..end_segment_length {
-            self.change_color_of_pixel(lowest_p[0]-k, lowest_p[1], fill);
+            self.change_color_of_pixel(rightmost_p[0]-k, rightmost_p[1], fill);
           }
         } else if horizontal_diff < vertical_diff {
           let end_segment_length = two_ends_combined_length/2;
@@ -1028,7 +1028,7 @@ impl BMP {
           }
           //last segment
           for k in 0..end_segment_length {
-            self.change_color_of_pixel(rightmost_p[0], rightmost_p[1]-k, fill);
+            self.change_color_of_pixel(lowest_p[0], lowest_p[1]-k, fill);
           }
         }
       } else {
@@ -1044,8 +1044,31 @@ impl BMP {
       }
     }
   }
+  //p1 is top left, p2 is top right
   pub fn draw_rectangle(&mut self, fill: Option<[u8; 4]>, stroke: Option<[u8; 4]>, p1: [u16; 2], p2: [u16; 2]) {
-    //
+    if stroke.is_some() {
+      let unwrapped_stroke = stroke.unwrap();
+      //top left to top right
+      self.draw_line(unwrapped_stroke, p1, [p2[0], p1[1]]);
+      //bottom left to bottom right
+      self.draw_line(unwrapped_stroke, [p1[0], p2[1]], [p2[0]+1, p2[1]]); //(hotizontal_diff-1)
+      //top left to bottom left
+      self.draw_line(unwrapped_stroke, p1, [p1[0], p2[1]]);
+      //top right to bottom right
+      self.draw_line(unwrapped_stroke, [p2[0], p1[1]], [p2[0], p2[1]]);
+    }
+    if fill.is_some() {
+      let unwrapped_fill = fill.unwrap();
+      let p1_mod = [p1[0]+1, p1[1]+1];
+      let p2_mod = [p2[0]-1, p2[1]-1];
+      //fill outline
+      self.draw_line(unwrapped_fill, p1_mod, [p2_mod[0], p1_mod[1]]);
+      self.draw_line(unwrapped_fill, [p1_mod[0], p2_mod[1]], [p2_mod[0]+1, p2_mod[1]]);
+      self.draw_line(unwrapped_fill, p1_mod, [p1_mod[0], p2_mod[1]]);
+      self.draw_line(unwrapped_fill, [p2_mod[0], p1_mod[1]], [p2_mod[0], p2_mod[1]]);
+      //fill fill_bucket
+      self.fill_bucket(unwrapped_fill, (p1[0]+2).into(), (p1[1]+2).into());
+    }
   }
   pub fn draw_ellipse(&mut self, fill: Option<[u8; 4]>, stroke: Option<[u8; 4]>, center: [u16; 2], xlength: u16, ylength: u16) {
     //

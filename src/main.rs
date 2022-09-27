@@ -48,10 +48,10 @@ fn main() {
   small_file3.draw_line([233, 30, 99, 255], [1, 2], [40, 2]);
   small_file3.save_to_new("src/images/line_test1.bmp");
   let mut small_file4 = BMP::new_from_file("src/images/small_example.bmp");
+  small_file4.draw_line([233, 30, 99, 255], [15, 32], [8, 20]); //backwards test
   small_file4.draw_line([233, 30, 99, 255], [3, 3], [14, 12]);
   small_file4.draw_line([100, 65, 45, 255], [20, 20], [52, 52]);
   small_file4.save_to_new("src/images/line_test2.bmp");
-  println!("Final draw line test");
   let mut small_file5 = BMP::new_from_file("src/images/small_example.bmp");
   small_file5.draw_line([125, 125, 170, 255], [4, 7], [8, 9]);
   small_file5.draw_line([255, 255, 255, 255], [8, 25], [40, 29]);
@@ -59,4 +59,20 @@ fn main() {
   small_file5.draw_line([0, 120, 11, 255], [35, 2], [36, 12]);
   small_file5.draw_line([100, 65, 45, 255], [4, 20], [7, 37]);
   small_file5.save_to_new("src/images/line_test3.bmp");
+  //IS THIS LOSS.JPG? NOPE ITS LOSS.BMP
+  let mut small_file6 = BMP::new_from_file("src/images/small_example.bmp");
+  small_file6.draw_line([255, 255, 255, 255], [10, 5], [10, 20]);
+  small_file6.draw_line([255, 255, 255, 255], [30, 5], [30, 20]);
+  small_file6.draw_line([255, 255, 255, 255], [40, 10], [40, 20]);
+  small_file6.draw_line([255, 255, 255, 255], [10, 35], [10, 45]);
+  small_file6.draw_line([255, 255, 255, 255], [20, 35], [20, 45]);
+  small_file6.draw_line([255, 255, 255, 255], [40, 35], [40, 45]);
+  small_file6.draw_line([255, 255, 255, 255], [35, 42], [50, 42]);
+  small_file6.save_to_new("src/images/loss.bmp");
+  println!("Draw rect test");
+  let mut small_file7 = BMP::new_from_file("src/images/small_example.bmp");
+  small_file7.draw_rectangle(None, Some([255, 255, 255, 255]), [0,2], [15,11]);
+  //problems here, outline not drawn correctly
+  small_file7.draw_rectangle(Some([0, 0, 0, 255]), Some([255, 255, 255, 255]), [40, 7], [45, 19]);
+  small_file7.save_to_new("src/images/rect_test.bmp");
 }
