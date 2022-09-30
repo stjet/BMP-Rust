@@ -35,6 +35,8 @@ fn main() {
   //test color changing
   //y starts at 1 x starts at 0
   small_file.change_color_of_pixel(10, 10, [233, 71, 255, 255]);
+  //alpha test
+  small_file.change_color_of_pixel(15, 15, [255, 126, 16, 0]);
   small_file.save_to_new("src/images/e.bmp");
   let mut small_file2 = BMP::new_from_file("src/images/e.bmp");
   //fill color may not be right
@@ -75,4 +77,9 @@ fn main() {
   //problems here, outline not drawn correctly
   small_file7.draw_rectangle(Some([0, 0, 0, 255]), Some([255, 255, 255, 255]), [40, 7], [45, 19]);
   small_file7.save_to_new("src/images/rect_test.bmp");
+  //invert test
+  println!("Invert test");
+  let mut small_file8 = BMP::new_from_file("src/images/small_example.bmp");
+  small_file8.invert(None);
+  small_file8.save_to_new("src/images/invert_test.bmp");
 }

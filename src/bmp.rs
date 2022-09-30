@@ -899,9 +899,35 @@ impl BMP {
   pub fn draw_image(&mut self, bmp2: BMP) {
     //
   }
-  pub fn filter(&mut self) {
-    //add/subtract to r,g,b for each pixel?
-    //masking
+  pub fn invert(&mut self, invert_alpha: Option<bool>) {
+    //invert colors of image
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return (),
+    };
+    let height: u16 = dib_header.height.abs() as u16;
+    let width: u16 = dib_header.width as u16;
+    //change every pixel
+    for y in 0..height {
+      for x in 0..width {
+        //get pixel color
+        let old_color = self.get_color_of_px(x as usize, y as usize);
+        let old_color: [u8; 4] = match old_color {
+          Ok(returned_color) => returned_color,
+          Err(e) => return (),
+        };
+        let mut new_fill: [u8; 4] = [255 - old_color[0], 255 - old_color[1], 255 - old_color[2], old_color[3]];
+        if invert_alpha.is_some() {
+          let invert_alpha_unwrapped = invert_alpha.unwrap();
+          if invert_alpha_unwrapped {
+            new_fill = [255 - old_color[0], 255 - old_color[1], 255 - old_color[2], 255 - old_color[3]];
+          }
+        }
+        //change pixel color
+        self.change_color_of_pixel(x, y, new_fill);
+      }
+    }
   }
   //shape, line making functions
   pub fn draw_line(&mut self, fill: [u8; 4], p1: [u16; 2], p2: [u16; 2]) {
@@ -1073,7 +1099,6 @@ impl BMP {
   pub fn draw_ellipse(&mut self, fill: Option<[u8; 4]>, stroke: Option<[u8; 4]>, center: [u16; 2], xlength: u16, ylength: u16) {
     //
   }
-  //BUGGY
   pub fn fill_bucket(&mut self, fill: [u8; 4], x: usize, y: usize) -> Result<Vec<[u16; 2]>, ErrorKind> {
     //fill same color connected to the (x,y) with new paint
     //check up, down, left, right. If same color as initial square, add to queue. Iterate through queue, after iterating add to visit and repeat
