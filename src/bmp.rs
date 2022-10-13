@@ -49,12 +49,27 @@ impl fmt::Display for ErrorKind {
 }
 
 //File header
-struct BITMAPFILEHEADER {
-  bfType: String,
-  bfSize: u32,
-  bfReserved1: Vec<u8>,
-  bfReserved2: Vec<u8>,
-  bfOffBits: u16,
+pub struct BITMAPFILEHEADER {
+  pub bfType: String,
+  pub bfSize: u32,
+  pub bfReserved1: Vec<u8>,
+  pub bfReserved2: Vec<u8>,
+  pub bfOffBits: u32,
+}
+
+impl IntoIterator for BITMAPFILEHEADER {
+  type Item = u8;
+  type IntoIter = std::array::IntoIter<u8, 14>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    let bytes_vec = [self.bfType.as_bytes(), &self.bfSize.to_le_bytes(), &BMP::vec_to_2u8_array(self.bfReserved1), &BMP::vec_to_2u8_array(self.bfReserved2), &self.bfOffBits.to_le_bytes()].concat();
+    let mut bytes_array: [u8; 14] = [0u8; 14];
+    //vector.len() should be 4
+    for i in 0..bytes_vec.len() {
+      bytes_array[i] = bytes_vec[i];
+    }
+    return std::array::IntoIter::new(bytes_array);
+  }
 }
 
 /*
@@ -170,6 +185,51 @@ pub struct DIBHEADER {
   pub Reserved: Option<Vec<u8>>,
 }
 
+/*
+impl IntoIterator for DIBHEADER {
+
+  size: dib_size as u16,
+          width: BMP::bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+8].try_into().unwrap()),
+          height: BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+12].try_into().unwrap()),
+          planes: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+12..HEADER_OFFSET+14].try_into().unwrap()) as u16,
+          bitcount: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+14..HEADER_OFFSET+16].try_into().unwrap()) as u16,
+          compression: Some(BMP::int_to_compression(BMP::bytes_to_int(self.contents[HEADER_OFFSET+16..HEADER_OFFSET+20].try_into().unwrap()))),
+          sizeimage: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+20..HEADER_OFFSET+24].try_into().unwrap())),
+          XPelsPerMeter: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+24..HEADER_OFFSET+28].try_into().unwrap())),
+          YPelsPerMeter: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+28..HEADER_OFFSET+32].try_into().unwrap())),
+          ClrUsed: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+32..HEADER_OFFSET+36].try_into().unwrap())),
+          ClrImportant: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+36..HEADER_OFFSET+40].try_into().unwrap())),
+          RedMask: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+40..HEADER_OFFSET+44].try_into().unwrap())),
+          GreenMask: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+44..HEADER_OFFSET+48].try_into().unwrap())),
+          BlueMask: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+48..HEADER_OFFSET+52].try_into().unwrap())),
+          AlphaMask: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+52..HEADER_OFFSET+56].try_into().unwrap())),
+          CSType: Some(BMP::bytes_to_string(&self.contents[HEADER_OFFSET+56..HEADER_OFFSET+60])),
+          //rgb
+          Endpoints: Some([[BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+60..HEADER_OFFSET+64].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+64..HEADER_OFFSET+68].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+68..HEADER_OFFSET+72].try_into().unwrap())],  [BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+72..HEADER_OFFSET+76].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+76..HEADER_OFFSET+80].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+80..HEADER_OFFSET+84].try_into().unwrap())], [BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+84..HEADER_OFFSET+88].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+88..HEADER_OFFSET+92].try_into().unwrap()), BMP::bytes_to_signed_int(self.contents[HEADER_OFFSET+92..HEADER_OFFSET+96].try_into().unwrap())]]),
+          GammaRed: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+96..HEADER_OFFSET+100].try_into().unwrap())),
+          GammaGreen: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+100..HEADER_OFFSET+104].try_into().unwrap())),
+          GammaBlue: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+104..HEADER_OFFSET+108].try_into().unwrap())),
+          Intent: Some(BMP::bytes_to_string(&self.contents[HEADER_OFFSET+108..HEADER_OFFSET+112])),
+          ProfileData: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+112..HEADER_OFFSET+116].try_into().unwrap()) as u16),
+          ProfileSize: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+116..HEADER_OFFSET+120].try_into().unwrap()) as u16),
+          Reserved: Some(self.contents[HEADER_OFFSET+120..HEADER_OFFSET+124].try_into().unwrap()),
+          
+  type Item = u8;
+  type IntoIter = std::array::IntoIter<u8, self.size as usize>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    let bytes_vec = [self.bfType.as_bytes(), &self.bfSize.to_le_bytes(), &BMP::vec_to_2u8_array(self.bfReserved1), &BMP::vec_to_2u8_array(self.bfReserved2), &self.bfOffBits.to_le_bytes()].concat();
+    let bytes_vec = [self.width].concat();
+    let mut bytes_array: [u8; 128] = [0u8; 128];
+    //vector.len() should be 4
+    for i in 0..bytes_vec.len() {
+      bytes_array[i] = bytes_vec[i];
+    }
+    return std::array::IntoIter::new(bytes_array);
+  }
+}
+*/
+
 //rgbtriple and rgbquad
 enum ColorTable {
   RGBTRIPLE(Vec<[u8; 3]>),
@@ -203,9 +263,31 @@ pub struct BMP {
 }
 
 impl BMP {
-  /*pub fn new() -> BMP {
-    return BMP { contents: Vec::new(), from_file: false };
-  }*/
+  //have a file header, generate (40 bytes? 108 bytes? 124 bytes?) dib header, load in [0, 0, 0, 0] for pixels in pixel data in bgra
+  pub fn new(height: i32, width: u32) -> BMP {
+    let mut contents = Vec::new();
+    //file header
+    let offset: u32 = 14+124;
+    let size = offset as u32+(height.abs() as u32 * width)*4;
+    let file_header = BITMAPFILEHEADER {
+      bfType: "BM".to_string(),
+      bfSize: size,
+      bfReserved1: vec![0, 0],
+      bfReserved2: vec![0, 0],
+      bfOffBits: offset,
+    };
+    contents.extend(file_header);
+    println!("{:?}", contents);
+    //let file_header = file_header.into_iter();
+    //
+    //turn it into bytes
+    //dib header, turn it into the bytes
+    //use v5: 124 bytes
+    //
+    //color table, turn it into the bytes
+    //
+    return BMP { contents: contents, from_file: false };
+  }
   pub fn new_from_file(file_path: &str) -> BMP {
     let contents = fs::read(file_path)
       .expect("Error encountered");
@@ -322,21 +404,21 @@ impl BMP {
     }
   }
   //file header related
-  fn get_header(&self) -> BITMAPFILEHEADER {
+  pub fn get_header(&self) -> BITMAPFILEHEADER {
     let header_bytes: &[u8; 14] = self.get_header_bytes();
     return BITMAPFILEHEADER {
       bfType: BMP::bytes_to_string(&header_bytes[..2]),
       bfSize: BMP::bytes_to_int(header_bytes[2..6].try_into().unwrap()),
       bfReserved1: header_bytes[6..8].try_into().unwrap(),
       bfReserved2: header_bytes[8..10].try_into().unwrap(),
-      bfOffBits: BMP::bytes_to_int(header_bytes[10..14].try_into().unwrap()) as u16,
+      bfOffBits: BMP::bytes_to_int(header_bytes[10..14].try_into().unwrap()) as u32,
     };
   }
   fn get_header_bytes(&self) -> &[u8; 14] {
     //turn slice into array
     self.contents[..14].try_into().unwrap()
   }
-  fn get_offset(&self) -> u16 {
+  fn get_offset(&self) -> u32 {
     self.get_header().bfOffBits
   }
   pub fn get_size(&self, use_header: bool) -> u32 {
@@ -530,7 +612,7 @@ impl BMP {
     //14 is the file header size
     let mut offset: u16 = 14;
     //where the actual pixel data starts, so the color table must end sometime before
-    let end: u16;
+    let end: u32;
     //either rgbtriple or masks or 
     let data_type: &str;
     //12, 40, 108, 124
@@ -572,7 +654,7 @@ impl BMP {
     if data_type == "rgbtriple" {
       let mut color_table_vec: Vec::<[u8; 3]> = Vec::new();
       //3 bytes
-      for i in 0..(f64::from((end-offset)/3).floor() as i64) {
+      for i in 0..(f64::from((end-offset as u32)/3).floor() as i64) {
         let ii = i as u16;
         color_table_vec.push([BMP::byte_to_int(self.contents[(offset+ii*3) as usize]) as u8, BMP::byte_to_int(self.contents[(offset+ii*3+1) as usize]) as u8, BMP::byte_to_int(self.contents[(offset+ii*3+2) as usize]) as u8]);
       }
@@ -580,7 +662,7 @@ impl BMP {
     } else /*if "rgbquad" == data_type*/ {
       let mut color_table_vec: Vec::<[u8; 4]> = Vec::new();
       //4 bytes
-      for i in 0..(f64::from((end-offset)/4).floor() as i64) {
+      for i in 0..(f64::from((end-offset as u32)/4).floor() as i64) {
         let ii = i as u16;
         color_table_vec.push([BMP::byte_to_int(self.contents[(offset+ii*4) as usize]) as u8, BMP::byte_to_int(self.contents[(offset+ii*4+1) as usize]) as u8, BMP::byte_to_int(self.contents[(offset+ii*4+2) as usize]) as u8, BMP::byte_to_int(self.contents[(offset+ii*4+3) as usize]) as u8]);
       }
@@ -610,15 +692,15 @@ impl BMP {
       //add rows as normal, to the back of vector
       //header.bfOffBits
       //https://en.wikipedia.org/wiki/BMP_file_format#Pixel_storage
-      let row_length = f64::from((dib_header.bitcount as u16*dib_header.width as u16/32)).ceil() as u32 * 4;
+      let row_length = f64::from(dib_header.bitcount as u16*dib_header.width as u16/32).ceil() as u32 * 4;
       //this may not work if there is profile data or other stuff after image?
-      let rows_num = (self.contents.len() as u32-header.bfOffBits as u32)/row_length;
+      let rows_num = (self.contents.len() as u32-header.bfOffBits)/row_length;
       for row_num in 0..rows_num {
         //let row: Vec<[u8; dib_header.bitcount/4]> = Vec::new();
         let mut row: Vec<Vec<u8>> = Vec::new();
         for pixel in 0..dib_header.width {
           if dib_header.bitcount >= 8 {
-            let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*((dib_header.bitcount/8) as u32);
+            let start: u32 = (header.bfOffBits)+(row_num as u32)*row_length+(pixel as u32)*((dib_header.bitcount/8) as u32);
             row.push(self.contents[start as usize..(start+(dib_header.bitcount/8) as u32) as usize].to_vec());
           } else {
             //we need to do bitwise operators if the pixels are smaller than 1 byte size (1 bit, 2 bit, 4 bit)
@@ -643,17 +725,17 @@ impl BMP {
       //bottom up (starts from lower left)
       //add rows to front of vector
       //let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*((dib_header.bitcount/8) as u32);
-      let row_length = f64::from((dib_header.bitcount as u16*dib_header.width as u16/32)).ceil() as u32 * 4;
-      let rows_num = (self.contents.len() as u32-header.bfOffBits as u32)/row_length;
+      let row_length = f64::from(dib_header.bitcount as u16*dib_header.width as u16/32).ceil() as u32 * 4;
+      let rows_num = (self.contents.len() as u32-header.bfOffBits)/row_length;
       for row_num in 0..rows_num {
         let mut row: Vec<Vec<u8>> = Vec::new();
         for pixel in 0..dib_header.width {
           if dib_header.bitcount >= 8 {
-            let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*((dib_header.bitcount/8) as u32);
+            let start: u32 = (header.bfOffBits)+(row_num as u32)*row_length+(pixel as u32)*((dib_header.bitcount/8) as u32);
             row.push(self.contents[start as usize..(start+(dib_header.bitcount/8) as u32) as usize].to_vec());
           } else {
             //we need to do bitwise operators if the pixels are smaller than 1 byte size (1 bit, 2 bit, 4 bit)
-            let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*(((dib_header.bitcount/8) as f64).ceil() as u32);
+            let start: u32 = (header.bfOffBits)+(row_num as u32)*row_length+(pixel as u32)*(((dib_header.bitcount/8) as f64).ceil() as u32);
             let byte: u8 = self.contents[start as usize];
             if dib_header.bitcount == 1 {
               let split_bits: [u8; 8] = [byte >> 7, (byte & 0b01000000) >> 6, (byte & 0b00100000) >> 5, (byte & 0b00010000) >> 4, (byte & 0b00001000) >> 3, (byte & 0b00000100) >> 2, (byte & 0b00000010) >> 1, byte & 0b00000001];
@@ -842,10 +924,10 @@ impl BMP {
       y = dib_header.height as u16 - y - 1;
     }
     //calculate row width (bytes)
-    let row_length = (f64::from(((bitcount/8) as u16*dib_header.width as u16/4)).ceil() as u32 * 4) as u16;
+    let row_length = (f64::from((bitcount/8) as u16*dib_header.width as u16/4).ceil() as u32 * 4) as u16;
     //amount of rows in front = y
     //add offset bits: header.bfOffBits (actually bytes)
-    let start = y*row_length+header.bfOffBits+(bitcount/8)*x;
+    let start = y*row_length+header.bfOffBits as u16+(bitcount/8)*x;
     //get indexes to change
     //self.contents
     //change the contents

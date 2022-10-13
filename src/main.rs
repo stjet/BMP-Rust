@@ -11,6 +11,7 @@ fn main() {
   let dib_header = file.get_dib_header();
   //height, width, bitcount, etc dib size
   if let Ok(unwrapped_dib_header) = dib_header {
+    println!("Dib header size: {}", unwrapped_dib_header.size);
     println!("Bitcount (bits per pixel): {}", unwrapped_dib_header.bitcount);
     println!("Height: {} pixels Width: {} pixels", unwrapped_dib_header.height, unwrapped_dib_header.width);
   }
@@ -82,4 +83,9 @@ fn main() {
   let mut small_file8 = BMP::new_from_file("src/images/small_example.bmp");
   small_file8.invert(None);
   small_file8.save_to_new("src/images/invert_test.bmp");
+  //new file test
+  println!("New file test");
+  let mut new_file = BMP::new(15, 15);
+  let new_file_header = new_file.get_header();
+  assert_eq!(138, new_file_header.bfOffBits);
 }
