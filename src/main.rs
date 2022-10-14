@@ -2,8 +2,7 @@ mod bmp;
 use crate::bmp::BMP;
 
 fn main() {
-  let file = BMP::new_from_file("src/images/example.bmp");
-  //tests of bmp lib
+  let file = BMP::new_from_file("src/images/example.bmp");  //tests of bmp lib
   let file_size = file.get_size(true);
   println!("File size (bytes): {}", file_size);
   assert_eq!(file_size/1024, BMP::num_bytes_to_kilobytes(file_size));
@@ -15,13 +14,6 @@ fn main() {
     println!("Bitcount (bits per pixel): {}", unwrapped_dib_header.bitcount);
     println!("Height: {} pixels Width: {} pixels", unwrapped_dib_header.height, unwrapped_dib_header.width);
   }
-  //println!("{:?}", file.get_color_of_px(0, 0).unwrap());
-  //test color functions
-  /*
-  let pixel_data = file.get_pixel_data();
-  if let Ok(unwrapped_pixel_data) = pixel_data {
-  }
-  */
   println!("Smaller file opened");
   //pixel data seems to start from bottom left
   let mut small_file = BMP::new_from_file("src/images/small_example.bmp");
