@@ -194,10 +194,20 @@ impl IntoIterator for DIBHEADER {
   fn into_iter(self) -> Self::IntoIter {
     //let bytes_vec = [self.bfType.as_bytes(), &self.bfSize.to_le_bytes(), &BMP::vec_to_2u8_array(self.bfReserved1), &BMP::vec_to_2u8_array(self.bfReserved2), &self.bfOffBits.to_le_bytes()].concat();
     let mut bytes_vec = [&self.size.to_le_bytes()[..], &self.width.to_le_bytes(), &self.height.to_le_bytes(), &self.planes.to_le_bytes(), &self.bitcount.to_le_bytes()].concat();
-    if (self.size > 12) {
-      bytes_vec.append(&mut [self.compression.unwrap().as_bytes(), &self.sizeimage.unwrap().to_le_bytes(), &self.XPelsPerMeter.unwrap().to_le_bytes(), &self.YPelsPerMeter.unwrap().to_le_bytes(), &self.ClrUsed.unwrap().to_le_bytes(), &self.ClrImportant.unwrap().to_le_bytes()].concat());
+    if self.size > 12 {
+      let compression_table: HashMap<String, u32> = HashMap::from([
+        ("BI_RGB".to_string(), 0),
+        ("BI_RLE8".to_string(), 1),
+        ("BI_RLE4".to_string(), 2),
+        ("BI_BITFIELDS".to_string(), 3),
+        ("BI_JPEG".to_string(), 4),
+        ("BI_PNG".to_string(), 5),
+        ("BI_ALPHABITFIELDS".to_string(), 6)
+      ]);
+      let compression: u32 = *compression_table.get(&self.compression.unwrap()).unwrap();
+      bytes_vec.append(&mut [&compression.to_le_bytes()[..], &self.sizeimage.unwrap().to_le_bytes(), &self.XPelsPerMeter.unwrap().to_le_bytes(), &self.YPelsPerMeter.unwrap().to_le_bytes(), &self.ClrUsed.unwrap().to_le_bytes(), &self.ClrImportant.unwrap().to_le_bytes()].concat());
     }
-    if (self.size > 40) {
+    if self.size > 40 {
       let mut endpoints_l: [u8; 36] = [0u8; 36];
       let endpoints = self.Endpoints.unwrap();
       //create endpoints list
@@ -214,8 +224,22 @@ impl IntoIterator for DIBHEADER {
       //wip
       bytes_vec.append(&mut [&self.RedMask.unwrap().to_le_bytes(), &self.GreenMask.unwrap().to_le_bytes(), &self.BlueMask.unwrap().to_le_bytes(), &self.AlphaMask.unwrap().to_le_bytes(), self.CSType.unwrap().as_bytes(), &endpoints_l[..], &self.GammaRed.unwrap().to_le_bytes(), &self.GammaGreen.unwrap().to_le_bytes(), &self.GammaBlue.unwrap().to_le_bytes()].concat());
     }
-    if (self.size > 108) {
-      //
+    if self.size > 108 {
+      //Reserved
+      let mut reserved_l: [u8; 4] = [0u8; 4];
+      let reserved = self.Reserved.unwrap();
+      for i in 0..4 {
+        reserved_l[i as usize] = reserved[i as usize];
+      }
+      //Intent
+      let intent_table: HashMap<String, u32> = HashMap::from([        ("LCS_GM_ABS_COLORIMETRIC".to_string(), 0),
+        ("LCS_GM_BUSINESS".to_string(), 1),
+        ("LCS_WINDOWS_COLOR_SPACE".to_string(), 2),
+        ("LCS_GM_GRAPHICS".to_string(), 3),
+        ("LCS_GM_IMAGES".to_string(), 4)
+      ]);
+      let intent: u32 = *intent_table.get(&self.Intent.unwrap()).unwrap();
+      bytes_vec.append(&mut [&intent.to_le_bytes()[..], &self.ProfileData.unwrap().to_le_bytes(), &self.ProfileSize.unwrap().to_le_bytes(), &reserved_l[..]].concat());
     }
     let mut bytes_array: [u8; 124] = [0u8; 124];
     //vector.len() should be 124
@@ -264,7 +288,7 @@ impl BMP {
     let mut contents = Vec::new();
     //file header
     let offset: u32 = 14+124;
-    let size = offset as u32+(height.abs() as u32 * width)*4;
+    let size: u32 = offset as u32+(height.abs() as u32 * width)*4;
     let file_header = BITMAPFILEHEADER {
       bfType: "BM".to_string(),
       bfSize: size,
@@ -272,16 +296,48 @@ impl BMP {
       bfReserved2: vec![0, 0],
       bfOffBits: offset,
     };
+    //turns into bytes, and adds it
     contents.extend(file_header);
-    println!("{:?}", contents);
-    //let file_header = file_header.into_iter();
-    //
-    //turn it into bytes
-    //dib header, turn it into the bytes
     //use v5: 124 bytes
-    //
-    //color table, turn it into the bytes
-    //
+    let dib_header = DIBHEADER {
+      size: 124,
+      width: width,
+      height: height,
+      planes: 1,
+      bitcount: 32,
+      compression: Some("BI_RGB".to_string()),
+      sizeimage: Some(size),
+      //96 dpi
+      XPelsPerMeter: Some(3780),
+      YPelsPerMeter: Some(3780),
+      //no color table, so ClrUsed and ClrImportant are 0
+      ClrUsed: Some(0),
+      ClrImportant: Some(0),
+      //ARGB?
+      RedMask: Some(16711680),
+      GreenMask: Some(65280),
+      BlueMask: Some(255),
+      AlphaMask: Some(4278190080),
+      //"BGRs" why? I don't know and I will not question
+      CSType: Some("BGRs".to_string()),
+      //I don't know what these numbers mean :)
+      Endpoints: Some([[687194752, 354334816, 32212256], [322122560, 644245120, 107374144], [161061280, 64424508, 848256036]]),
+      GammaRed: Some(0),
+      GammaGreen: Some(0),
+      GammaBlue: Some(0),
+      Intent: Some("LCS_GM_IMAGES".to_string()),
+      ProfileData: Some(0),
+      ProfileSize: Some(0),
+      Reserved: Some(vec![0, 0, 0, 0]),
+    };
+    contents.extend(dib_header);
+    //pixels, turn it into the bytes
+    //no rounding is needed, because each row is rounded up to a multiple of u32, which all our pixels are
+    for pixel_num in 0..(width*height as u32) {
+      //white by default
+      contents.extend([255, 255, 255, 255]);
+    }
+    //println!("{:?}", contents);
     return BMP { contents: contents, from_file: false };
   }
   pub fn new_from_file(file_path: &str) -> BMP {
@@ -347,6 +403,16 @@ impl BMP {
       (6, "BI_ALPHABITFIELDS".to_string())
     ]);
     return compression_table.get(&int).unwrap().to_string();
+  }
+  fn int_to_intent(int: u32) -> String {
+    let intent_table: HashMap<u32, String> = HashMap::from([
+      (0, "LCS_GM_ABS_COLORIMETRIC".to_string()),
+      (1, "LCS_GM_BUSINESS".to_string()),
+      (2, "LCS_WINDOWS_COLOR_SPACE".to_string()),
+      (3, "LCS_GM_GRAPHICS".to_string()),
+      (4, "LCS_GM_IMAGES".to_string())
+    ]);
+    return intent_table.get(&int).unwrap().to_string();
   }
   //color related utilities
   fn alpha_to_percentage(alpha: u8) -> f64 {
@@ -523,8 +589,8 @@ impl BMP {
       124 => {
         //"BITMAPV5HEADER"
         //dword 4 bytes
-          //long 4 bytes
-          //CIEXYZTRIPLE 36 bytes
+        //long 4 bytes
+        //CIEXYZTRIPLE 36 bytes
         dib_header = DIBHEADER {
           size: dib_size,
           width: BMP::bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+8].try_into().unwrap()),
@@ -547,7 +613,8 @@ impl BMP {
           GammaRed: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+96..HEADER_OFFSET+100].try_into().unwrap())),
           GammaGreen: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+100..HEADER_OFFSET+104].try_into().unwrap())),
           GammaBlue: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+104..HEADER_OFFSET+108].try_into().unwrap())),
-          Intent: Some(BMP::bytes_to_string(&self.contents[HEADER_OFFSET+108..HEADER_OFFSET+112])),
+          Intent: Some(BMP::int_to_intent(BMP::bytes_to_int(self.contents[HEADER_OFFSET+108..HEADER_OFFSET+112].try_into().unwrap()))),
+          //Some(BMP::bytes_to_string(&self.contents[HEADER_OFFSET+108..HEADER_OFFSET+112]))
           ProfileData: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+112..HEADER_OFFSET+116].try_into().unwrap()) as u16),
           ProfileSize: Some(BMP::bytes_to_int(self.contents[HEADER_OFFSET+116..HEADER_OFFSET+120].try_into().unwrap()) as u16),
           Reserved: Some(self.contents[HEADER_OFFSET+120..HEADER_OFFSET+124].try_into().unwrap()),
@@ -808,7 +875,7 @@ impl BMP {
         let rgba: [u8; 4];
         //these should be from extra bit masks!
         let red_mask: u32 = dib_header.RedMask.unwrap();
-        let green_mask: u32 = dib_header.RedMask.unwrap();
+        //let green_mask: u32 = dib_header.RedMask.unwrap();
         let blue_mask: u32 = dib_header.RedMask.unwrap();
         if red_mask < blue_mask {
           //assume rgb
@@ -840,7 +907,7 @@ impl BMP {
         //determine if alpha is in front or back. determine is rgb or brg
         let rgba: [u8; 4];
         let red_mask: u32 = dib_header.RedMask.unwrap();
-        let green_mask: u32 = dib_header.RedMask.unwrap();
+        //let green_mask: u32 = dib_header.RedMask.unwrap();
         let blue_mask: u32 = dib_header.RedMask.unwrap();
         let alpha_mask: u32 = dib_header.AlphaMask.unwrap();
         if alpha_mask < red_mask {
@@ -935,7 +1002,7 @@ impl BMP {
       self.contents[(start+2) as usize] = new_color[0];
     } else if bitcount == 32 {
       let red_mask: u32 = dib_header.RedMask.unwrap();
-      let green_mask: u32 = dib_header.RedMask.unwrap();
+      //let green_mask: u32 = dib_header.RedMask.unwrap();
       let blue_mask: u32 = dib_header.RedMask.unwrap();
       let alpha_mask: u32 = dib_header.AlphaMask.unwrap();
       //4 bytes

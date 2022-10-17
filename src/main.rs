@@ -17,6 +17,14 @@ fn main() {
   println!("Smaller file opened");
   //pixel data seems to start from bottom left
   let mut small_file = BMP::new_from_file("src/images/small_example.bmp");
+
+  /*
+  if let Ok(unwrapped_dib_header2) = small_file.get_dib_header() {
+    println!("Gamma: {} {} {}", unwrapped_dib_header2.GammaRed.unwrap(), unwrapped_dib_header2.GammaGreen.unwrap(), unwrapped_dib_header2.GammaBlue.unwrap());
+    println!("{:?}", unwrapped_dib_header2.Endpoints.unwrap());
+  }
+  */
+  
   //these are currently brg instead of rgb
   println!("{:?}", small_file.get_color_of_px(10, 10).unwrap());
   println!("{:?}", small_file.get_color_of_px(40, 10).unwrap());
@@ -80,4 +88,5 @@ fn main() {
   let mut new_file = BMP::new(15, 15);
   let new_file_header = new_file.get_header();
   assert_eq!(138, new_file_header.bfOffBits);
+  new_file.save_to_new("src/images/artificial.bmp");
 }
