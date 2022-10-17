@@ -9,7 +9,9 @@ description = "Rust library to read, write, and create BMP Image files"
 homepage = "https://prussia.dev"
 keywords = ["image", "bmp", "editing"]
 categories = ["multimedia::images"]
-
+exclude = [
+  "example/*",
+]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
