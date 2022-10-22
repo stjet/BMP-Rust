@@ -84,6 +84,13 @@ fn main() {
   let mut small_file8 = BMP::new_from_file("example/images/small_example.bmp");
   small_file8.invert(None);
   small_file8.save_to_new("example/images/invert_test.bmp");
+  //circle test
+  println!("Ellipse test");
+  let mut small_file9 = BMP::new_from_file("example/images/small_example.bmp");
+  small_file9.draw_ellipse([23, 25], 10, 12, [255, 0, 0, 255], Some([125, 64, 64, 255]), true);
+  small_file9.draw_ellipse([8, 8], 4, 4, [255, 0, 0, 255], None, false);
+  //small_file9.draw_ellipse([13, 35], 4, 5, [255, 0, 0, 255], None);
+  small_file9.save_to_new("example/images/ellipse_test.bmp");
   //new file test
   println!("New file test");
   let mut new_file = BMP::new(15, 15);

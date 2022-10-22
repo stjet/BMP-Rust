@@ -1241,8 +1241,51 @@ impl BMP {
       self.fill_bucket(unwrapped_fill, (p1[0]+2).into(), (p1[1]+2).into());
     }
   }
-  pub fn draw_ellipse(&mut self, fill: Option<[u8; 4]>, stroke: Option<[u8; 4]>, center: [u16; 2], xlength: u16, ylength: u16) {
-    //
+  pub fn draw_ellipse(&mut self, center: [u16; 2], xlength: u16, ylength: u16, stroke: [u8; 4], fill: Option<[u8; 4]>, guess: bool) {
+    //x^2/a^2 + y^2/b^2 = 1
+    //y = sqroot((1 - x^2 / a^2) * b^2)
+    //plug in values from x-xlength to x+xlength and find y value, fill inside
+    //aka a^2
+    let xlength_2: f64 = i32::pow(xlength.into(), 2) as f64;
+    //aka b^2
+    let ylength_2: f64 = i32::pow(ylength.into(), 2) as f64;
+    let mut prev_y = 0;
+    for il in 1..xlength+1 {
+      let c_x = il;
+      let c_x_2: f64 = i32::pow(c_x.into(), 2) as f64;
+      let y = (((1 as f64-c_x_2/xlength_2)*ylength_2) as f64).sqrt().round() as u16;
+      self.change_color_of_pixel(center[0]-c_x, center[1]+y, stroke);      self.change_color_of_pixel(center[0]-c_x, center[1]-y, stroke);
+      let diff = (prev_y as i16-y as i16).abs() as u16;
+      if diff > 1 && il != 1 && guess {
+        for d in 1..diff+1 {
+          self.change_color_of_pixel(center[0]-c_x+1, center[1]+y+d, stroke);
+          self.change_color_of_pixel(center[0]-c_x+1, center[1]-y-d, stroke);
+        }
+      }
+      prev_y = y;
+    }
+    for ir in 1..xlength+1 {
+      let c_x = ir;
+      let c_x_2: f64 = i32::pow(c_x.into(), 2) as f64;
+      let y = (((1 as f64-c_x_2/xlength_2)*ylength_2) as f64).sqrt().round() as u16;
+      println!("ir {} {}, {} {}", center[0]+c_x, center[1]+y, center[0]+c_x, center[1]-y);
+      self.change_color_of_pixel(center[0]+c_x, center[1]+y, stroke);
+      self.change_color_of_pixel(center[0]+c_x, center[1]-y, stroke);
+      let diff = (prev_y as i16-y as i16).abs() as u16;
+      if diff > 1 && ir != 1 && guess {
+        for d in 1..diff+1 {
+          self.change_color_of_pixel(center[0]+c_x-1, center[1]+y+d, stroke);
+          self.change_color_of_pixel(center[0]+c_x-1, center[1]-y-d, stroke);
+        }
+      }
+      prev_y = y;
+    }
+    self.change_color_of_pixel(center[0], center[1]+ylength, stroke);
+    self.change_color_of_pixel(center[0], center[1]-ylength, stroke);
+    if fill.is_some() {
+      let unwrapped_fill = fill.unwrap();
+      self.fill_bucket(unwrapped_fill, center[0] as usize, center[1] as usize);
+    }
   }
   pub fn fill_bucket(&mut self, fill: [u8; 4], x: usize, y: usize) -> Result<Vec<[u16; 2]>, ErrorKind> {
     //fill same color connected to the (x,y) with new paint
