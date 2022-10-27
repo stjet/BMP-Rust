@@ -91,6 +91,11 @@ fn main() {
   small_file9.draw_ellipse([8, 8], 4, 4, [255, 0, 0, 255], None, false);
   //small_file9.draw_ellipse([13, 35], 4, 5, [255, 0, 0, 255], None);
   small_file9.save_to_new("example/images/ellipse_test.bmp");
+  //opacity change
+  println!("Opacity test");
+  let mut small_file10 = BMP::new_from_file("example/images/small_example.bmp");
+  small_file10.change_opacity(15);
+  small_file10.save_to_new("example/images/opacity_test.bmp");
   //new file test
   println!("New file test");
   let mut new_file = BMP::new(15, 15);

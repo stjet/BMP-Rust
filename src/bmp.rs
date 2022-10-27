@@ -1041,8 +1041,31 @@ impl BMP {
     return Ok(());
   }
   //image editing functions
-  pub fn draw_image(&mut self, bmp2: BMP) {
-    //
+  pub fn draw_image(&mut self, x: u16, y: u16, bmp2: BMP) {
+    //bmp2.
+  }
+  pub fn change_opacity(&mut self, opacity: u8) {
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return (),
+    };
+    let height: u16 = dib_header.height.abs() as u16;
+    let width: u16 = dib_header.width as u16;
+    //change every pixel
+    for y in 0..height {
+      for x in 0..width {
+        //get pixel color
+        let old_color = self.get_color_of_px(x as usize, y as usize);
+        let old_color: [u8; 4] = match old_color {
+          Ok(returned_color) => returned_color,
+          Err(e) => return (),
+        };
+        let mut new_fill: [u8; 4] = [old_color[0], old_color[1], old_color[2], opacity];
+        //change pixel color
+        self.change_color_of_pixel(x, y, new_fill);
+      }
+    }
   }
   pub fn invert(&mut self, invert_alpha: Option<bool>) {
     //invert colors of image
@@ -1268,7 +1291,6 @@ impl BMP {
       let c_x = ir;
       let c_x_2: f64 = i32::pow(c_x.into(), 2) as f64;
       let y = (((1 as f64-c_x_2/xlength_2)*ylength_2) as f64).sqrt().round() as u16;
-      println!("ir {} {}, {} {}", center[0]+c_x, center[1]+y, center[0]+c_x, center[1]-y);
       self.change_color_of_pixel(center[0]+c_x, center[1]+y, stroke);
       self.change_color_of_pixel(center[0]+c_x, center[1]-y, stroke);
       let diff = (prev_y as i16-y as i16).abs() as u16;
