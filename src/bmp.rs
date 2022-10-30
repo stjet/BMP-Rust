@@ -288,6 +288,14 @@ impl PartialEq for BMP {
   }
 }
 
+impl Clone for BMP {
+  fn clone(&self) -> BMP {
+    let mut clone_bmp = BMP::new(1, 1);
+    clone_bmp.contents = self.contents.to_vec();
+    return clone_bmp;
+  }
+}
+
 impl BMP {
   //have a file header, generate (40 bytes? 108 bytes? 124 bytes?) dib header, load in [0, 0, 0, 0] for pixels in pixel data in bgra
   pub fn new(height: i32, width: u32) -> BMP {

@@ -95,6 +95,9 @@ fn main() {
   println!("Opacity test");
   let mut small_file10 = BMP::new_from_file("example/images/small_example.bmp");
   small_file10.change_opacity(15);
+  if small_file10 == small_file10.clone() {
+    println!("clone success");
+  }
   small_file10.save_to_new("example/images/opacity_test.bmp");
   //new file test
   println!("New file test");
