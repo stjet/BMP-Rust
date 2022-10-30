@@ -282,6 +282,12 @@ pub struct BMP {
   //dib_header: DIBHEADER,
 }
 
+impl PartialEq for BMP {
+  fn eq(&self, other: &BMP) -> bool {
+    self.contents == other.contents
+  }
+}
+
 impl BMP {
   //have a file header, generate (40 bytes? 108 bytes? 124 bytes?) dib header, load in [0, 0, 0, 0] for pixels in pixel data in bgra
   pub fn new(height: i32, width: u32) -> BMP {
@@ -734,7 +740,7 @@ impl BMP {
     return Ok(color_table);
   }
   //pixel array
-  fn get_pixel_data(&self) -> Result<VecDeque<Vec<Vec<u8>>>, ErrorKind> {
+  pub fn get_pixel_data(&self) -> Result<VecDeque<Vec<Vec<u8>>>, ErrorKind> {
     //figure out if top down or bottom up
     //let it panic if it is an error
     let dib_header = self.get_dib_header();
@@ -1042,7 +1048,12 @@ impl BMP {
   }
   //image editing functions
   pub fn draw_image(&mut self, x: u16, y: u16, bmp2: BMP) {
-    //bmp2.
+    let pixel_data = bmp2.get_pixel_data();
+    let pixel_data = match pixel_data {
+      Ok(returned_pixel_data) => returned_pixel_data,
+      Err(e) => return (),
+    };
+    //
   }
   pub fn change_opacity(&mut self, opacity: u8) {
     let dib_header = self.get_dib_header();

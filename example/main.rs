@@ -102,4 +102,7 @@ fn main() {
   let new_file_header = new_file.get_header();
   assert_eq!(138, new_file_header.bfOffBits);
   new_file.save_to_new("example/images/artificial.bmp");
+  let mut new_file2 = BMP::new(15, 15);
+  let mut new_file3 = BMP::new(15, 15);
+  println!("{}", new_file2 == new_file3);
 }
