@@ -1054,6 +1054,68 @@ impl BMP {
     }
     return Ok(());
   }
+  pub fn change_color_of_pixels(&mut self, pixels: Vec<[u16; 2]>, new_color: [u8; 4]) -> Result<(), ErrorKind> {
+    //same as change_color_of_pixel but more efficient
+    //see comments in that function for explanations
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    let header = self.get_header();
+    let bitcount = dib_header.bitcount;
+    if bitcount != 24 && bitcount != 32 {
+      return Err(ErrorKind::Unsupported);
+    }
+    let row_length = (f64::from((bitcount/8) as u16*dib_header.width as u16/4).ceil() as u32 * 4) as u16;
+    for pixel in pixels {
+      let x = pixel[0];
+      let mut y = pixel[1];
+      if dib_header.height > 0 {
+        y = dib_header.height as u16 - y - 1;
+      }
+      let start = y*row_length+header.bfOffBits as u16+(bitcount/8)*x;
+      if bitcount == 24 {
+        self.contents[start as usize] = new_color[2];
+        self.contents[(start+1) as usize] = new_color[1];
+        self.contents[(start+2) as usize] = new_color[0];
+      } else if bitcount == 32 {
+        let red_mask: u32 = dib_header.RedMask.unwrap();
+        let blue_mask: u32 = dib_header.RedMask.unwrap();
+        let alpha_mask: u32 = dib_header.AlphaMask.unwrap();
+        if alpha_mask < red_mask {
+          if red_mask < blue_mask {
+            //argb
+            self.contents[start as usize] = new_color[3];
+            self.contents[(start+1) as usize] = new_color[0];
+            self.contents[(start+2) as usize] = new_color[1];
+            self.contents[(start+3) as usize] = new_color[2];
+          } else {
+            //abgr
+            self.contents[start as usize] = new_color[3];
+            self.contents[(start+1) as usize] = new_color[2];
+            self.contents[(start+2) as usize] = new_color[1];
+            self.contents[(start+3) as usize] = new_color[0];
+          }
+        } else {
+          if red_mask < blue_mask {
+            //rgba
+            self.contents[start as usize] = new_color[0];
+            self.contents[(start+1) as usize] = new_color[1];
+            self.contents[(start+2) as usize] = new_color[2];
+            self.contents[(start+3) as usize] = new_color[3];
+          } else {
+            //bgra
+            self.contents[start as usize] = new_color[2];
+            self.contents[(start+1) as usize] = new_color[1];
+            self.contents[(start+2) as usize] = new_color[0];
+            self.contents[(start+3) as usize] = new_color[3];
+          }
+        }
+      }
+    }
+    return Ok(());
+  }
   //image editing functions
   pub fn draw_image(&mut self, x: u16, y: u16, bmp2: BMP) {
     let pixel_data = bmp2.get_pixel_data();

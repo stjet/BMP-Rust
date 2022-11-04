@@ -39,6 +39,8 @@ fn main() {
   small_file.change_color_of_pixel(10, 10, [233, 71, 255, 255]);
   //alpha test
   small_file.change_color_of_pixel(15, 15, [255, 126, 16, 0]);
+  //batch color change
+  small_file.change_color_of_pixels(vec![[3,3],[3,4],[4,3],[4,4]], [50, 24, 69, 255]);
   small_file.save_to_new("example/images/e.bmp");
   let mut small_file2 = BMP::new_from_file("example/images/e.bmp");
   //fill color may not be right
