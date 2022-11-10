@@ -103,9 +103,11 @@ fn main() {
   small_file10.save_to_new("example/images/opacity_test.bmp");
   //new file test
   println!("New file test");
-  let mut new_file = BMP::new(15, 15);
+  let mut new_file = BMP::new(125, 125);
   let new_file_header = new_file.get_header();
   assert_eq!(138, new_file_header.bfOffBits);
+  println!("Draw image on another test");
+  new_file.draw_image(12, 19, BMP::new_from_file("example/images/small_example.bmp"));
   new_file.save_to_new("example/images/artificial.bmp");
   let mut new_file2 = BMP::new(15, 15);
   let mut new_file3 = BMP::new(15, 15);

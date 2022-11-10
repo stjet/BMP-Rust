@@ -68,7 +68,9 @@ impl IntoIterator for BITMAPFILEHEADER {
     for i in 0..bytes_vec.len() {
       bytes_array[i] = bytes_vec[i];
     }
-    return std::array::IntoIter::new(bytes_array);
+    //DEPRECATED
+    //return std::array::IntoIter::new(bytes_array);
+    return IntoIterator::into_iter(bytes_array);
   }
 }
 
@@ -246,7 +248,9 @@ impl IntoIterator for DIBHEADER {
     for i in 0..bytes_vec.len() {
       bytes_array[i] = bytes_vec[i];
     }
-    return std::array::IntoIter::new(bytes_array);
+    //DEPRECATED
+    //return std::array::IntoIter::new(bytes_array);
+    return IntoIterator::into_iter(bytes_array);
   }
 }
   
@@ -1118,12 +1122,23 @@ impl BMP {
   }
   //image editing functions
   pub fn draw_image(&mut self, x: u16, y: u16, bmp2: BMP) {
+    //get height and width
+    let dib_header = bmp2.get_dib_header().unwrap();
+    let bmp2_height = (dib_header.height).abs();
+    let bmp2_width = dib_header.width;
+    //get pixel data
     let pixel_data = bmp2.get_pixel_data();
     let pixel_data = match pixel_data {
       Ok(returned_pixel_data) => returned_pixel_data,
       Err(e) => return (),
     };
-    //
+    for i in 0..bmp2_height {
+      for j in 0..bmp2_width {
+        let new_pixel = [x+j as u16, y+i as u16];
+        let new_color = bmp2.get_color_of_px(i as usize, j as usize).unwrap();
+        self.change_color_of_pixel(new_pixel[0], new_pixel[1], new_color);
+      }
+    }
   }
   pub fn change_opacity(&mut self, opacity: u8) {
     let dib_header = self.get_dib_header();
