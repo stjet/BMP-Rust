@@ -23,6 +23,7 @@ pub enum ErrorKind {
   DoesNotExist,
   WrongFileType,
   UseExtraBitMasks,
+  FailedToWrite,
 }
 
 impl ErrorKind {
@@ -32,6 +33,7 @@ impl ErrorKind {
       ErrorKind::DoesNotExist => "Requested object does not exist",
       ErrorKind::WrongFileType => "Wrong file type. Must be a .bmp file",
       ErrorKind::UseExtraBitMasks => "Use extra bit masks instead",
+      ErrorKind::FailedToWrite => "Failed to write to file",
     }
   }
 }
@@ -49,6 +51,7 @@ impl fmt::Display for ErrorKind {
 }
 
 //File header
+#[allow(non_snake_case)]
 pub struct BITMAPFILEHEADER {
   pub bfType: String,
   pub bfSize: u32,
@@ -75,7 +78,7 @@ impl IntoIterator for BITMAPFILEHEADER {
 }
 
 /*
-//DIB Headers
+DIB Headers
 struct BITMAPCOREHEADER {
   size: u16,
   width: u32,
@@ -83,12 +86,11 @@ struct BITMAPCOREHEADER {
   planes: u16,
   bitcount: u16,
 }
-
-//if biCompression is BI_ALPHABITFIELDS or BI_BITFIELDS 
+if biCompression is BI_ALPHABITFIELDS or BI_BITFIELDS 
 struct BITMAPINFOHEADER {
   size: u16,
   width: u32,
-  //biHeight can be negative
+  biHeight can be negative
   height: i32,
   planes: u16,
   bitcount: u16,
@@ -99,11 +101,10 @@ struct BITMAPINFOHEADER {
   ClrUsed: u32,
   ClrImportant: u32,
 }
-
 struct BITMAPV4HEADER {
   size: u16,
   width: u32,
-  //bV4Height can be negative
+  bV4Height can be negative
   height: i32,
   planes: u16,
   bitcount: u16,
@@ -118,13 +119,12 @@ struct BITMAPV4HEADER {
   BlueMask: u32,
   AlphaMask: u32,
   CSType: String,
-  //rgb
+  rgb
   Endpoints: [[i32; 3]; 3],
   GammaRed: u32,
   GammaGreen: u32,
   GammaBlue: u32,
 }
-
 struct BITMAPV5HEADER {
   size: u16,
   width: u32,
@@ -160,6 +160,8 @@ enum DIBHEADER {
 }
 */
 
+//DIB header
+#[allow(non_snake_case)]
 pub struct DIBHEADER {
   pub size: u32,
   pub width: u32,
@@ -261,12 +263,14 @@ enum ColorTable {
 }
 
 //extra bit masks, these are unofficial names
+#[allow(non_camel_case_types)]
 pub struct BI_BITFIELDS_MASKS {
   pub red: u32,
   pub green: u32,
   pub blue: u32,
 }
 
+#[allow(non_camel_case_types)]
 pub struct BI_ALPHABITFIELDS_MASKS {
   pub red: u32,
   pub green: u32,
@@ -274,6 +278,7 @@ pub struct BI_ALPHABITFIELDS_MASKS {
   pub alpha: u32,
 }
 
+#[allow(non_camel_case_types)]
 enum EXTRA_BIT_MASKS {
   BI_BITFIELDS_MASKS(BI_BITFIELDS_MASKS),
   BI_ALPHABITFIELDS_MASKS(BI_ALPHABITFIELDS_MASKS),
@@ -351,7 +356,7 @@ impl BMP {
     contents.extend(dib_header);
     //pixels, turn it into the bytes
     //no rounding is needed, because each row is rounded up to a multiple of u32, which all our pixels are
-    for pixel_num in 0..(width*height as u32) {
+    for _pixel_num in 0..(width*height as u32) {
       //white by default
       contents.extend([255, 255, 255, 255]);
     }
@@ -657,7 +662,7 @@ impl BMP {
       40 => {
         //see previous comment, should be mutable instead of redefined, maybe
         //offset should be 14+40
-        let TOTAL_OFFSET = 54;
+        const TOTAL_OFFSET: usize = 54;
         let compression = dib_header.compression.unwrap();
         if compression == "BI_BITFIELDS" {
           return Ok(EXTRA_BIT_MASKS::BI_BITFIELDS_MASKS(BI_BITFIELDS_MASKS {
@@ -966,7 +971,7 @@ impl BMP {
       } else {
         index = BMP::byte_to_int(pixel[0]) as u16;
       }
-      let mut rgba: [u8; 4];
+      let rgba: [u8; 4];
       match color_table {
         ColorTable::RGBTRIPLE(vec) => {
           let rgb: [u8; 3] = vec[index as usize];
@@ -1121,30 +1126,25 @@ impl BMP {
     return Ok(());
   }
   //image editing functions
-  pub fn draw_image(&mut self, x: u16, y: u16, bmp2: BMP) {
+  pub fn draw_image(&mut self, x: u16, y: u16, bmp2: BMP)  -> Result<(), ErrorKind> {
     //get height and width
     let dib_header = bmp2.get_dib_header().unwrap();
     let bmp2_height = (dib_header.height).abs();
     let bmp2_width = dib_header.width;
-    //get pixel data
-    let pixel_data = bmp2.get_pixel_data();
-    let pixel_data = match pixel_data {
-      Ok(returned_pixel_data) => returned_pixel_data,
-      Err(e) => return (),
-    };
     for i in 0..bmp2_height {
       for j in 0..bmp2_width {
         let new_pixel = [x+j as u16, y+i as u16];
         let new_color = bmp2.get_color_of_px(i as usize, j as usize).unwrap();
-        self.change_color_of_pixel(new_pixel[0], new_pixel[1], new_color);
+        self.change_color_of_pixel(new_pixel[0], new_pixel[1], new_color)?;
       }
     }
+    return Ok(());
   }
-  pub fn change_opacity(&mut self, opacity: u8) {
+  pub fn change_opacity(&mut self, opacity: u8) -> Result<(), ErrorKind> {
     let dib_header = self.get_dib_header();
     let dib_header = match dib_header {
       Ok(returned_dib_header) => returned_dib_header,
-      Err(e) => return (),
+      Err(e) => return Err(e),
     };
     let height: u16 = dib_header.height.abs() as u16;
     let width: u16 = dib_header.width as u16;
@@ -1155,20 +1155,21 @@ impl BMP {
         let old_color = self.get_color_of_px(x as usize, y as usize);
         let old_color: [u8; 4] = match old_color {
           Ok(returned_color) => returned_color,
-          Err(e) => return (),
+          Err(e) => return Err(e),
         };
-        let mut new_fill: [u8; 4] = [old_color[0], old_color[1], old_color[2], opacity];
+        let new_fill: [u8; 4] = [old_color[0], old_color[1], old_color[2], opacity];
         //change pixel color
-        self.change_color_of_pixel(x, y, new_fill);
+        self.change_color_of_pixel(x, y, new_fill)?;
       }
     }
+    return Ok(());
   }
-  pub fn invert(&mut self, invert_alpha: Option<bool>) {
+  pub fn invert(&mut self, invert_alpha: Option<bool>) -> Result<(), ErrorKind> {
     //invert colors of image
     let dib_header = self.get_dib_header();
     let dib_header = match dib_header {
       Ok(returned_dib_header) => returned_dib_header,
-      Err(e) => return (),
+      Err(e) => return Err(e),
     };
     let height: u16 = dib_header.height.abs() as u16;
     let width: u16 = dib_header.width as u16;
@@ -1179,7 +1180,7 @@ impl BMP {
         let old_color = self.get_color_of_px(x as usize, y as usize);
         let old_color: [u8; 4] = match old_color {
           Ok(returned_color) => returned_color,
-          Err(e) => return (),
+          Err(e) => return Err(e),
         };
         let mut new_fill: [u8; 4] = [255 - old_color[0], 255 - old_color[1], 255 - old_color[2], old_color[3]];
         if invert_alpha.is_some() {
@@ -1189,20 +1190,21 @@ impl BMP {
           }
         }
         //change pixel color
-        self.change_color_of_pixel(x, y, new_fill);
+        self.change_color_of_pixel(x, y, new_fill)?;
       }
     }
+    return Ok(());
   }
   //shape, line making functions
-  pub fn draw_line(&mut self, fill: [u8; 4], p1: [u16; 2], p2: [u16; 2]) {
+  pub fn draw_line(&mut self, fill: [u8; 4], p1: [u16; 2], p2: [u16; 2]) -> Result<(), ErrorKind> {
     if p1[0] == p2[0] {
       //x matches x, straight vertical line
       for ay in 0..(p2[1] as i16 - p1[1] as i16).abs() as u16 {
         //if p1 is below p2
         if p1[1] < p2[1] {
-          self.change_color_of_pixel(p1[0], p1[1]+ay, fill);
+          self.change_color_of_pixel(p1[0], p1[1]+ay, fill)?;
         } else {
-          self.change_color_of_pixel(p2[0], p2[1]+ay, fill);
+          self.change_color_of_pixel(p2[0], p2[1]+ay, fill)?;
         }
       }
     } else if p1[1] == p2[1] {
@@ -1210,9 +1212,9 @@ impl BMP {
       for ax in 0..(p2[0] as i16 - p1[0] as i16).abs() as u16 {
         //if p1 is to the left of p2
         if p1[0] < p2[0] {
-          self.change_color_of_pixel(p1[0]+ax, p1[1], fill);
+          self.change_color_of_pixel(p1[0]+ax, p1[1], fill)?;
         } else {
-          self.change_color_of_pixel(p2[0]+ax, p2[1], fill);
+          self.change_color_of_pixel(p2[0]+ax, p2[1], fill)?;
         }
       }
     } else {
@@ -1239,8 +1241,8 @@ impl BMP {
       }
       //if vertical equal or more than 2, there will be middle segments
       if vertical_diff >= 2 {
-        let mut middle_segment_length: u16;
-        let mut two_ends_combined_length;
+        let middle_segment_length: u16;
+        let two_ends_combined_length;
         if horizontal_diff >= vertical_diff {
           // middle segments = floor horizontal/vertical
           middle_segment_length = f64::from((horizontal_diff)/(vertical_diff)).floor() as u16;
@@ -1256,10 +1258,10 @@ impl BMP {
         // each end should be two ends / 2
         // if two ends = 1, make first end 1 and subtract 1 from last segment and give to last end
         if two_ends_combined_length == 1 {
-          let end_segment_length = two_ends_combined_length/2;
+          //let end_segment_length = two_ends_combined_length/2;
           //first segment
           //leftmost_p
-          self.change_color_of_pixel(leftmost_p[0], leftmost_p[1], fill);
+          self.change_color_of_pixel(leftmost_p[0], leftmost_p[1], fill)?;
           //middle segments
           for j in 0..(vertical_diff-2) {
             for ji in 0..middle_segment_length {
@@ -1268,57 +1270,57 @@ impl BMP {
                 continue;
               }
               if highest_p == leftmost_p {
-                self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]+j, fill);
+                self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]+j, fill)?;
               } else {
-                self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]-j, fill);
+                self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]-j, fill)?;
               }
             }
           }
           //last segment
-          self.change_color_of_pixel(rightmost_p[0], rightmost_p[1], fill);
+          self.change_color_of_pixel(rightmost_p[0], rightmost_p[1], fill)?;
         } else if horizontal_diff >= vertical_diff {
           let end_segment_length = two_ends_combined_length/2;
           //first segment
           //leftmost_p
           for i in 0..end_segment_length {
-            self.change_color_of_pixel(leftmost_p[0]+i, leftmost_p[1], fill);
+            self.change_color_of_pixel(leftmost_p[0]+i, leftmost_p[1], fill)?;
           }
           //middle segments
           for j in 0..(vertical_diff-2) {
             for ji in 0..middle_segment_length {
               if highest_p == leftmost_p {
-                self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length+end_segment_length, leftmost_p[1]+j+1, fill);
+                self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length+end_segment_length, leftmost_p[1]+j+1, fill)?;
               } else {
-                self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]-j, fill);
+                self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]-j, fill)?;
               }
             }
           }
           //last segment
           for k in 0..end_segment_length {
-            self.change_color_of_pixel(rightmost_p[0]-k, rightmost_p[1], fill);
+            self.change_color_of_pixel(rightmost_p[0]-k, rightmost_p[1], fill)?;
           }
         } else if horizontal_diff < vertical_diff {
           let end_segment_length = two_ends_combined_length/2;
           //first segment
           //leftmost_p
           for i in 0..end_segment_length {
-            self.change_color_of_pixel(leftmost_p[0], leftmost_p[1]+i, fill);
+            self.change_color_of_pixel(leftmost_p[0], leftmost_p[1]+i, fill)?;
           }
           //middle segments
           for j in 0..(horizontal_diff-2) {
             for ji in 0..middle_segment_length {
               if highest_p == leftmost_p {
                 //self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length+end_segment_length, leftmost_p[1]+j+1, fill);
-                self.change_color_of_pixel(leftmost_p[0]+j+1, leftmost_p[1]+ji+j*middle_segment_length+end_segment_length, fill);
+                self.change_color_of_pixel(leftmost_p[0]+j+1, leftmost_p[1]+ji+j*middle_segment_length+end_segment_length, fill)?;
               } else {
                 //self.change_color_of_pixel(leftmost_p[0]+ji+j*middle_segment_length, rightmost_p[1]-j, fill);
-                self.change_color_of_pixel(leftmost_p[0]-j, rightmost_p[1]+ji+j*middle_segment_length, fill);
+                self.change_color_of_pixel(leftmost_p[0]-j, rightmost_p[1]+ji+j*middle_segment_length, fill)?;
               }
             }
           }
           //last segment
           for k in 0..end_segment_length {
-            self.change_color_of_pixel(lowest_p[0], lowest_p[1]-k, fill);
+            self.change_color_of_pixel(lowest_p[0], lowest_p[1]-k, fill)?;
           }
         }
       } else {
@@ -1326,41 +1328,43 @@ impl BMP {
         let first_segment: u16 = (f64::from(horizontal_diff/2)).floor() as u16;
         let second_segment: u16 = (f64::from(horizontal_diff/2)).ceil() as u16;
         for i in 0..first_segment {
-          self.change_color_of_pixel(leftmost_p[0]+i, leftmost_p[1], fill);
+          self.change_color_of_pixel(leftmost_p[0]+i, leftmost_p[1], fill)?;
         }
         for j in 0..second_segment {
-          self.change_color_of_pixel(rightmost_p[0]-j, rightmost_p[1], fill);
+          self.change_color_of_pixel(rightmost_p[0]-j, rightmost_p[1], fill)?;
         }
       }
     }
+    return Ok(());
   }
   //p1 is top left, p2 is top right
-  pub fn draw_rectangle(&mut self, fill: Option<[u8; 4]>, stroke: Option<[u8; 4]>, p1: [u16; 2], p2: [u16; 2]) {
+  pub fn draw_rectangle(&mut self, fill: Option<[u8; 4]>, stroke: Option<[u8; 4]>, p1: [u16; 2], p2: [u16; 2]) -> Result<(), ErrorKind> {
     if stroke.is_some() {
       let unwrapped_stroke = stroke.unwrap();
       //top left to top right
-      self.draw_line(unwrapped_stroke, p1, [p2[0], p1[1]]);
+      self.draw_line(unwrapped_stroke, p1, [p2[0], p1[1]])?;
       //bottom left to bottom right
-      self.draw_line(unwrapped_stroke, [p1[0], p2[1]], [p2[0]+1, p2[1]]); //(hotizontal_diff-1)
+      self.draw_line(unwrapped_stroke, [p1[0], p2[1]], [p2[0]+1, p2[1]])?; //(hotizontal_diff-1)
       //top left to bottom left
-      self.draw_line(unwrapped_stroke, p1, [p1[0], p2[1]]);
+      self.draw_line(unwrapped_stroke, p1, [p1[0], p2[1]])?;
       //top right to bottom right
-      self.draw_line(unwrapped_stroke, [p2[0], p1[1]], [p2[0], p2[1]]);
+      self.draw_line(unwrapped_stroke, [p2[0], p1[1]], [p2[0], p2[1]])?;
     }
     if fill.is_some() {
       let unwrapped_fill = fill.unwrap();
       let p1_mod = [p1[0]+1, p1[1]+1];
       let p2_mod = [p2[0]-1, p2[1]-1];
       //fill outline
-      self.draw_line(unwrapped_fill, p1_mod, [p2_mod[0], p1_mod[1]]);
-      self.draw_line(unwrapped_fill, [p1_mod[0], p2_mod[1]], [p2_mod[0]+1, p2_mod[1]]);
-      self.draw_line(unwrapped_fill, p1_mod, [p1_mod[0], p2_mod[1]]);
-      self.draw_line(unwrapped_fill, [p2_mod[0], p1_mod[1]], [p2_mod[0], p2_mod[1]]);
+      self.draw_line(unwrapped_fill, p1_mod, [p2_mod[0], p1_mod[1]])?;
+      self.draw_line(unwrapped_fill, [p1_mod[0], p2_mod[1]], [p2_mod[0]+1, p2_mod[1]])?;
+      self.draw_line(unwrapped_fill, p1_mod, [p1_mod[0], p2_mod[1]])?;
+      self.draw_line(unwrapped_fill, [p2_mod[0], p1_mod[1]], [p2_mod[0], p2_mod[1]])?;
       //fill fill_bucket
-      self.fill_bucket(unwrapped_fill, (p1[0]+2).into(), (p1[1]+2).into());
+      self.fill_bucket(unwrapped_fill, (p1[0]+2).into(), (p1[1]+2).into())?;
     }
+    return Ok(());
   }
-  pub fn draw_ellipse(&mut self, center: [u16; 2], xlength: u16, ylength: u16, stroke: [u8; 4], fill: Option<[u8; 4]>, guess: bool) {
+  pub fn draw_ellipse(&mut self, center: [u16; 2], xlength: u16, ylength: u16, stroke: [u8; 4], fill: Option<[u8; 4]>, guess: bool) -> Result<(), ErrorKind> {
     //x^2/a^2 + y^2/b^2 = 1
     //y = sqroot((1 - x^2 / a^2) * b^2)
     //plug in values from x-xlength to x+xlength and find y value, fill inside
@@ -1373,12 +1377,13 @@ impl BMP {
       let c_x = il;
       let c_x_2: f64 = i32::pow(c_x.into(), 2) as f64;
       let y = (((1 as f64-c_x_2/xlength_2)*ylength_2) as f64).sqrt().round() as u16;
-      self.change_color_of_pixel(center[0]-c_x, center[1]+y, stroke);      self.change_color_of_pixel(center[0]-c_x, center[1]-y, stroke);
+      self.change_color_of_pixel(center[0]-c_x, center[1]+y, stroke)?;
+      self.change_color_of_pixel(center[0]-c_x, center[1]-y, stroke)?;
       let diff = (prev_y as i16-y as i16).abs() as u16;
       if diff > 1 && il != 1 && guess {
         for d in 1..diff+1 {
-          self.change_color_of_pixel(center[0]-c_x+1, center[1]+y+d, stroke);
-          self.change_color_of_pixel(center[0]-c_x+1, center[1]-y-d, stroke);
+          self.change_color_of_pixel(center[0]-c_x+1, center[1]+y+d, stroke)?;
+          self.change_color_of_pixel(center[0]-c_x+1, center[1]-y-d, stroke)?;
         }
       }
       prev_y = y;
@@ -1387,23 +1392,24 @@ impl BMP {
       let c_x = ir;
       let c_x_2: f64 = i32::pow(c_x.into(), 2) as f64;
       let y = (((1 as f64-c_x_2/xlength_2)*ylength_2) as f64).sqrt().round() as u16;
-      self.change_color_of_pixel(center[0]+c_x, center[1]+y, stroke);
-      self.change_color_of_pixel(center[0]+c_x, center[1]-y, stroke);
+      self.change_color_of_pixel(center[0]+c_x, center[1]+y, stroke)?;
+      self.change_color_of_pixel(center[0]+c_x, center[1]-y, stroke)?;
       let diff = (prev_y as i16-y as i16).abs() as u16;
       if diff > 1 && ir != 1 && guess {
         for d in 1..diff+1 {
-          self.change_color_of_pixel(center[0]+c_x-1, center[1]+y+d, stroke);
-          self.change_color_of_pixel(center[0]+c_x-1, center[1]-y-d, stroke);
+          self.change_color_of_pixel(center[0]+c_x-1, center[1]+y+d, stroke)?;
+          self.change_color_of_pixel(center[0]+c_x-1, center[1]-y-d, stroke)?;
         }
       }
       prev_y = y;
     }
-    self.change_color_of_pixel(center[0], center[1]+ylength, stroke);
-    self.change_color_of_pixel(center[0], center[1]-ylength, stroke);
+    self.change_color_of_pixel(center[0], center[1]+ylength, stroke)?;
+    self.change_color_of_pixel(center[0], center[1]-ylength, stroke)?;
     if fill.is_some() {
       let unwrapped_fill = fill.unwrap();
-      self.fill_bucket(unwrapped_fill, center[0] as usize, center[1] as usize);
+      self.fill_bucket(unwrapped_fill, center[0] as usize, center[1] as usize)?;
     }
+    return Ok(());
   }
   pub fn fill_bucket(&mut self, fill: [u8; 4], x: usize, y: usize) -> Result<Vec<[u16; 2]>, ErrorKind> {
     //fill same color connected to the (x,y) with new paint
@@ -1480,15 +1486,19 @@ impl BMP {
     }
     //loop through visited
     for px in &visited {
-      self.change_color_of_pixel(px[0], px[1], fill);
+      self.change_color_of_pixel(px[0], px[1], fill)?;
     }
     //&self.save_to_new("src/images/e2.bmp");
     return Ok(visited);
   }
   //save image functions
-  pub fn save_to_new(self, file_path: &str) {
+  pub fn save_to_new(self, file_path: &str) -> Result<(), ErrorKind> {
     let mut new_file = fs::File::create(&std::path::Path::new(file_path)).unwrap();
-    new_file.write_all(&self.contents);
+    let write_op = new_file.write_all(&self.contents);
+    let write_op = match write_op {
+      Ok(file) => return Ok(()),
+      Err(e) => return Err(ErrorKind::FailedToWrite),
+    };
   }
 }
 
