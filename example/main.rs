@@ -3,6 +3,7 @@ mod bmp;
 use bmp::bmp::BMP;
 
 fn main() {
+  println!("{:?}", BMP::composite_colors([233,71,255,200], [0,0,0,0]));
   let file = BMP::new_from_file("example/images/example.bmp");  //tests of bmp lib
   let file_size = file.get_size(true);
   println!("File size (bytes): {}", file_size);
@@ -101,15 +102,25 @@ fn main() {
     println!("clone success");
   }
   small_file10.save_to_new("example/images/opacity_test.bmp").expect("Failed to write to file");
+    let mut small_file11 = BMP::new_from_file("example/images/small_example.bmp");
+  small_file11.change_opacity(200).expect("Failed to change opacity");
+  small_file11.save_to_new("example/images/opacity_test2.bmp").expect("Failed to write to file");
   //new file test
   println!("New file test");
-  let mut new_file = BMP::new(125, 125);
+  let mut new_file = BMP::new(125, 125, None);
   let new_file_header = new_file.get_header();
   assert_eq!(138, new_file_header.bfOffBits);
   println!("Draw image on another test");
   new_file.draw_image(12, 19, BMP::new_from_file("example/images/small_example.bmp")).expect("Failed to draw image");
   new_file.save_to_new("example/images/artificial.bmp").expect("Failed to write to file");
-  let new_file2 = BMP::new(15, 15);
-  let new_file3 = BMP::new(15, 15);
+  let new_file2 = BMP::new(15, 15, None);
+  let new_file3 = BMP::new(15, 15, None);
   println!("{}", new_file2 == new_file3);
+  //new from scratch default color test
+  println!("New file default color test");
+  let mut scratch_custom = BMP::new(125, 125, Some([128, 64, 128, 200]));
+  //alpha compositing test
+  println!("Draw image alpha compositing test");
+  scratch_custom.draw_image(20, 20, BMP::new_from_file("example/images/opacity_test.bmp")).expect("Failed to draw image");
+  scratch_custom.save_to_new("example/images/scratch_custom.bmp").expect("Failed to write to file");
 }

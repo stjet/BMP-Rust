@@ -299,7 +299,7 @@ impl PartialEq for BMP {
 
 impl Clone for BMP {
   fn clone(&self) -> BMP {
-    let mut clone_bmp = BMP::new(1, 1);
+    let mut clone_bmp = BMP::new(1, 1, None);
     clone_bmp.contents = self.contents.to_vec();
     return clone_bmp;
   }
@@ -307,7 +307,7 @@ impl Clone for BMP {
 
 impl BMP {
   //have a file header, generate (40 bytes? 108 bytes? 124 bytes?) dib header, load in [0, 0, 0, 0] for pixels in pixel data in bgra
-  pub fn new(height: i32, width: u32) -> BMP {
+  pub fn new(height: i32, width: u32, default_color: Option<[u8; 4]>) -> BMP {
     let mut contents = Vec::new();
     //file header
     let offset: u32 = 14+124;
@@ -358,7 +358,11 @@ impl BMP {
     //no rounding is needed, because each row is rounded up to a multiple of u32, which all our pixels are
     for _pixel_num in 0..(width*height as u32) {
       //white by default
-      contents.extend([255, 255, 255, 255]);
+      if default_color.is_some() {
+        contents.extend(default_color.unwrap());
+      } else {
+        contents.extend([255, 255, 255, 255]);
+      }
     }
     //println!("{:?}", contents);
     return BMP { contents: contents, from_file: false };
@@ -440,7 +444,10 @@ impl BMP {
   //color related utilities
   fn alpha_to_percentage(alpha: u8) -> f64 {
     //.into() turns the u8 into f64 (expected return type)
-    return (alpha/255).into();
+    return (alpha as f64/255 as f64).into();
+  }
+  fn percentage_to_alpha(percentage: f64) -> u8 {
+    return (percentage * 255 as f64).round() as u8;
   }
   fn rgb_to_color(rgb: [u8; 3]) -> String {
     //changes rgb to readable color. (takes rgba) eg: black
@@ -487,6 +494,18 @@ impl BMP {
       }
       return "Similar to ".to_string()+colors.get(&closest).unwrap();
     }
+  }
+  pub fn composite_colors(color1: [u8; 4], color2: [u8; 4]) -> [u8; 4] {
+    //convert the a from range 0-255 to range 0-1 (alpha_to_percentage)
+    let a1 = BMP::alpha_to_percentage(color1[3]);
+    let a2 = BMP::alpha_to_percentage(color2[3]);
+    //alpha equation: a0 = a1 + a2(1-a1)
+    let a0 = a1+a2*(1 as f64 - a1);
+    //c0 = (c1a1 + c2a2(1 - a1)) / a0
+    let c0_0: f64 = (color1[0] as f64*a1 + color2[0] as f64*a2*(1 as f64-a1))/a0;
+    let c0_1: f64 = (color1[1] as f64*a1 + color2[1] as f64*a2*(1 as f64-a1))/a0;
+    let c0_2: f64 = (color1[2] as f64*a1 + color2[2] as f64*a2*(1 as f64-a1))/a0;
+    return [c0_0.round() as u8, c0_1.round() as u8, c0_2.round() as u8, BMP::percentage_to_alpha(a0)];
   }
   //file header related
   pub fn get_header(&self) -> BITMAPFILEHEADER {
@@ -1134,8 +1153,13 @@ impl BMP {
     for i in 0..bmp2_height {
       for j in 0..bmp2_width {
         let new_pixel = [x+j as u16, y+i as u16];
+        let old_color = self.get_color_of_px(i as usize, j as usize).unwrap();
         let new_color = bmp2.get_color_of_px(i as usize, j as usize).unwrap();
-        self.change_color_of_pixel(new_pixel[0], new_pixel[1], new_color)?;
+        if old_color[3] == 255 && new_color[3] == 255 {
+          self.change_color_of_pixel(new_pixel[0], new_pixel[1], new_color)?;
+        } else {
+          self.change_color_of_pixel(new_pixel[0], new_pixel[1], BMP::composite_colors(new_color, old_color))?;
+        }
       }
     }
     return Ok(());
