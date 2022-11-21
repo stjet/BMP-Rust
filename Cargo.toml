@@ -1,6 +1,6 @@
 [package]
 name = "bmp-rust"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["jetstream0 <prussia@prussia.dev>"]
 edition = "2021"
 license = "MIT"

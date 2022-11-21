@@ -917,8 +917,8 @@ impl BMP {
         let rgba: [u8; 4];
         //these should be from extra bit masks!
         let red_mask: u32 = dib_header.RedMask.unwrap();
-        //let green_mask: u32 = dib_header.RedMask.unwrap();
-        let blue_mask: u32 = dib_header.RedMask.unwrap();
+        //let green_mask: u32 = dib_header.GreenMask.unwrap();
+        let blue_mask: u32 = dib_header.BlueMask.unwrap();
         if red_mask < blue_mask {
           //assume rgb
           rgba = [BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), 255];
@@ -949,8 +949,8 @@ impl BMP {
         //determine if alpha is in front or back. determine is rgb or brg
         let rgba: [u8; 4];
         let red_mask: u32 = dib_header.RedMask.unwrap();
-        //let green_mask: u32 = dib_header.RedMask.unwrap();
-        let blue_mask: u32 = dib_header.RedMask.unwrap();
+        //let green_mask: u32 = dib_header.GreenMask.unwrap();
+        let blue_mask: u32 = dib_header.BlueMask.unwrap();
         let alpha_mask: u32 = dib_header.AlphaMask.unwrap();
         if alpha_mask < red_mask {
           //alpha is in front
@@ -1045,7 +1045,7 @@ impl BMP {
     } else if bitcount == 32 {
       let red_mask: u32 = dib_header.RedMask.unwrap();
       //let green_mask: u32 = dib_header.RedMask.unwrap();
-      let blue_mask: u32 = dib_header.RedMask.unwrap();
+      let blue_mask: u32 = dib_header.BlueMask.unwrap();
       let alpha_mask: u32 = dib_header.AlphaMask.unwrap();
       //4 bytes
       if alpha_mask < red_mask {
@@ -1109,7 +1109,7 @@ impl BMP {
         self.contents[(start+2) as usize] = new_color[0];
       } else if bitcount == 32 {
         let red_mask: u32 = dib_header.RedMask.unwrap();
-        let blue_mask: u32 = dib_header.RedMask.unwrap();
+        let blue_mask: u32 = dib_header.BlueMask.unwrap();
         let alpha_mask: u32 = dib_header.AlphaMask.unwrap();
         if alpha_mask < red_mask {
           if red_mask < blue_mask {
