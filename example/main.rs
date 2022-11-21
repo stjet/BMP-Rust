@@ -31,7 +31,9 @@ fn main() {
   println!("{:?}", small_file.get_color_of_px(10, 10).unwrap());
   println!("{:?}", small_file.get_color_of_px(40, 10).unwrap());
   println!("{:?}", small_file.get_color_of_px(10, 40).unwrap());
-  println!("{:?}", small_file.get_color_of_px(40, 40).unwrap());
+  assert_eq!([233, 71, 255, 255],  small_file.get_color_of_px(40, 40).unwrap());
+  println!("{:?}", small_file.get_color_of_px_efficient(51, 51, small_file.get_dib_header().unwrap(), small_file.get_pixel_data().unwrap(), None).unwrap());
+
   //let ttt = u32::from_le_bytes([255, 255, 255, 255]);
   //println!("{}", ttt);
   //println!("{}", ttt & 0b00000000111111110000000000000000);\
