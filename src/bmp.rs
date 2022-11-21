@@ -164,6 +164,7 @@ enum DIBHEADER {
 
 //DIB header
 #[allow(non_snake_case)]
+#[derive(Clone)]
 pub struct DIBHEADER {
   pub size: u32,
   pub width: u32,

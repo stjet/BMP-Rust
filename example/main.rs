@@ -15,6 +15,7 @@ fn main() {
     println!("Dib header size: {}", unwrapped_dib_header.size);
     println!("Bitcount (bits per pixel): {}", unwrapped_dib_header.bitcount);
     println!("Height: {} pixels Width: {} pixels", unwrapped_dib_header.height, unwrapped_dib_header.width);
+    println!("{}", unwrapped_dib_header.clone().height);
   }
   println!("Smaller file opened");
   //pixel data seems to start from bottom left
