@@ -1009,54 +1009,37 @@ impl BMP {
       return Ok(rgba);
     }
   }
-  //more efficient version
-  pub fn get_color_of_px_efficient(&self, x: usize, y: usize, dib_header: DIBHEADER, pixel_data: VecDeque<Vec<Vec<u8>>>, color_table: Option<ColorTable>) -> Result<[u8; 4], ErrorKind> {
-    let pixel: &Vec<u8> = &pixel_data[y][x];
-    let pixel: Vec<u8> = pixel.to_vec();
-    //TODO: incorporate masks
-    //if more than 12 bytes dib header, there are masks
-    //RedMask, GreenMask, BlueMask, AlphaMask
-    //if BI_BITFIELDS and 16 or 24 bits
-    //also for smaller dib header (info), check to see if there are extra bit masks
+  //rgba, bgra, etc
+  pub fn get_format(&self) -> String {
+    let dib_header = self.get_dib_header().unwrap();
     if dib_header.bitcount == 16 {
       let compression = dib_header.compression.unwrap();
       if compression == "BI_BITFIELDS" && (dib_header.RedMask.is_some() && dib_header.GreenMask.is_some() && dib_header.BlueMask.is_some()) {
         //check masks
         //due to complexity we dont actually use the masks, we convert them into integer, and then compare size. Bigger it is, the more the one is to the left
-        let rgba: [u8; 4];
         //these should be from extra bit masks!
         let red_mask: u32 = dib_header.RedMask.unwrap();
         //let green_mask: u32 = dib_header.GreenMask.unwrap();
         let blue_mask: u32 = dib_header.BlueMask.unwrap();
         if red_mask < blue_mask {
           //assume rgb
-          rgba = [BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), 255];
+          return "rgb".to_string();
         } else {
           //assume brg
-          rgba = [BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[0]), 255];
+          return "brg".to_string();
         }
-        return Ok(rgba);
       } else {
         //compression is "BI_RGB"
         //5 for each r,g,b (15 bits + 1 per pixel)
         //currently placeholder
-        return Ok([0, 0, 0, 255]);
+        return "rgb".to_string();
       }
     } else if dib_header.bitcount == 24 {
-      //if 24 bit, no need to look at color table because it is rgb.
-      //there is no alpha value, so it is 100 (nontransparent/opaque)
-      //order is BGR not RGB
-      let rgba: [u8; 4] = [BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[0]), 255];
-      return Ok(rgba);
+      return "bgr".to_string();
     } else if dib_header.bitcount == 32 {
       //32 means rgba
       let compression = dib_header.compression.unwrap();
       if (compression == "BI_BITFIELDS" || compression == "BI_ALPHABITFIELDS") && (dib_header.RedMask.is_some() && dib_header.GreenMask.is_some() && dib_header.BlueMask.is_some()) {
-        //check masks
-        //due to complexity we dont actually use the masks, we convert them into integer, and then compare size. Bigger it is, the more the one is to the left
-        //placeholder
-        //determine if alpha is in front or back. determine is rgb or brg
-        let rgba: [u8; 4];
         let red_mask: u32 = dib_header.RedMask.unwrap();
         //let green_mask: u32 = dib_header.GreenMask.unwrap();
         let blue_mask: u32 = dib_header.BlueMask.unwrap();
@@ -1065,53 +1048,26 @@ impl BMP {
           //alpha is in front
           if red_mask < blue_mask {
             //argb
-            rgba = [BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[3]), BMP::byte_to_int(pixel[0])];
+            return "argb".to_string();
           } else {
             //abgr
-            rgba = [BMP::byte_to_int(pixel[3]), BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[0])];
+            return "abgr".to_string();
           }
         } else {
           //alpha is in back
           if red_mask < blue_mask {
             //rgba
-            rgba = [BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[3])];
+            return "rgba".to_string();
           } else {
             //bgra
-            rgba = [BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[3])];
+            return "bgra".to_string();
           }
         }
-        return Ok(rgba);
       } else {
-        let rgba: [u8; 4] = [BMP::byte_to_int(pixel[0]), BMP::byte_to_int(pixel[1]), BMP::byte_to_int(pixel[2]), BMP::byte_to_int(pixel[3])];
-        return Ok(rgba);
+        return "rgba".to_string();
       }
     } else {
-      //otherwise look at color table for corresponding color. The bit (s) in the pixel data are indexes. We look up the index in the color table to find the color
-      let color_table = match color_table {
-        Some(returned_color_table) => returned_color_table,
-        None => return Err(ErrorKind::Missing),
-      };
-      //1, 2, 4 (half byte), 8 (1 bytes), 16 (2 bytes)
-      let index;
-      if dib_header.bitcount == 16 {
-        index = BMP::two_bytes_to_int(BMP::vec_to_2u8_array(pixel));
-      } else {
-        index = BMP::byte_to_int(pixel[0]) as u16;
-      }
-      let rgba: [u8; 4];
-      match color_table {
-        ColorTable::RGBTRIPLE(vec) => {
-          let rgb: [u8; 3] = vec[index as usize];
-          //the array is fixed size [u8; 3] we want to turn it into [u8; 4] with the 4th being 255
-          let mut rgb = rgb.to_vec();
-          rgb.push(255);
-          rgba = BMP::vec_to_4u8_array(rgb);
-        },
-        ColorTable::RGBQUAD(vec) => {
-          rgba = vec[index as usize];
-        }
-      }
-      return Ok(rgba);
+      return "color table".to_string();
     }
   }
   //edit color pixels, only supports 24 and 32 bit
