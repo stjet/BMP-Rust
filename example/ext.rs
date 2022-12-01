@@ -18,6 +18,7 @@ impl VideoLayer {
       frames: vec![],
     };
   }
+  fn create_blank_bmp(&mut self) {}
   fn add_frame(&mut self, frame: BMP) {
     self.frames.push(frame);
   }
@@ -43,6 +44,13 @@ impl VideoConstructor {
   }
   fn export(&self) {
     //loop through self.layers, composite layers frames
+    for frame_num in self.layers[0].frames.len() {
+      let frame = BMP::new(self.width, self.height, [0, 0, 0, 0]);
+      for layer in self.layers {
+        frame.draw_image(0, 0, layer.frames[frame_num]);
+      }
+      //
+    }
     //use ffmpeg to convert to video?
     //Command::new("ffmpeg").args([])
     //maybe opencv

@@ -331,7 +331,7 @@ impl BMP {
       height: height,
       planes: 1,
       bitcount: 32,
-      compression: Some("BI_RGB".to_string()),
+      compression: Some("BI_BITFIELDS".to_string()),
       sizeimage: Some(size),
       //96 dpi
       XPelsPerMeter: Some(3780),
@@ -1283,6 +1283,35 @@ impl BMP {
     }
     return Ok(());
   }
+  //translate, rotate
+  pub fn translate(&mut self, x: i16, y: i16) -> Result<(), ErrorKind> {
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    //copy self, to get original colors, iterate through and put new colors
+    let og_bmp: BMP = self.clone();
+    let height = dib_header.height.abs() as i16;
+    let width = dib_header.width as i16;
+    //empty self
+    self.contents = BMP::new(dib_header.height, dib_header.width, Some([255, 255, 255, 0])).contents;
+    for row in 0..height {
+      for column in 0..width {
+        let temp_x: i16 = column+x;
+        let temp_y: i16 = row+y;
+        if temp_y < 0 || temp_y >= height || temp_x < 0 || temp_x >= width {
+          continue;
+        }
+        let color = og_bmp.get_color_of_px(column as usize, row as usize).unwrap();
+        self.change_color_of_pixel(temp_x as u16, temp_y as u16, color)?;
+      }
+    }
+    return Ok(());
+  }
+  pub fn rotate(&mut self, degrees: u16) {
+    //
+  }
   //shape, line making functions
   pub fn draw_line(&mut self, fill: [u8; 4], p1: [u16; 2], p2: [u16; 2]) -> Result<(), ErrorKind> {
     if p1[0] == p2[0] {
@@ -1584,7 +1613,7 @@ impl BMP {
     let mut new_file = fs::File::create(&std::path::Path::new(file_path)).unwrap();
     let write_op = new_file.write_all(&self.contents);
     let write_op = match write_op {
-      Ok(file) => return Ok(()),
+      Ok(_file) => return Ok(()),
       Err(e) => return Err(ErrorKind::FailedToWrite),
     };
   }

@@ -126,4 +126,15 @@ fn main() {
   println!("Draw image alpha compositing test");
   scratch_custom.draw_image(20, 20, BMP::new_from_file("example/images/opacity_test.bmp")).expect("Failed to draw image");
   scratch_custom.save_to_new("example/images/scratch_custom.bmp").expect("Failed to write to file");
+  //translate test
+  println!("Translate test");
+  let mut translate_file = BMP::new_from_file("example/images/opacity_test.bmp");
+  let mut translate_file2 = translate_file.clone();
+  let mut translate_file3 = translate_file.clone();
+  translate_file.translate(-3, 5).expect("Translate failed");
+  translate_file.save_to_new("example/images/translate1.bmp");
+  translate_file2.translate(0, 2).expect("Translate failed");
+  translate_file2.save_to_new("example/images/translate2.bmp");
+  translate_file3.translate(-25, 40).expect("Translate failed");
+  translate_file3.save_to_new("example/images/translate3.bmp");
 }
