@@ -4,6 +4,7 @@ use std::collections::VecDeque;
 use std::fmt;
 use std::collections::HashMap;
 use std::io::Write;
+use std::f64::consts::PI;
 //use std::io::ErrorKind;
 
 //support packed dibs, dibs that have no empty gaps
@@ -421,6 +422,9 @@ impl BMP {
       array[i] = vector[i];
     }
     return array;
+  }
+  fn deg_to_rad(deg: f64) -> f64 {
+    return deg/180 as f64*PI;
   }
   fn int_to_compression(int: u32) -> String {
     let compression_table: HashMap<u32, String> = HashMap::from([
@@ -1309,8 +1313,35 @@ impl BMP {
     }
     return Ok(());
   }
-  pub fn rotate(&mut self, degrees: u16) {
-    //
+  pub fn rotate(&mut self, deg: f64) -> Result<(), ErrorKind> {
+    //change deg ro radians
+    let rad: f64 = BMP::deg_to_rad(deg);
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    let og_bmp: BMP = self.clone();
+    let height = dib_header.height.abs() as i16;
+    let width = dib_header.width as i16;
+    self.contents = BMP::new(dib_header.height, dib_header.width, Some([255, 255, 255, 0])).contents;
+    for row in 0..height {
+      for column in 0..width {
+        //x2 = x cos - y sin
+        let x2: i16 = (column as f64 * rad.cos() - row as f64 * rad.sin()).round() as i16;
+        //y2 = y cos + x sin
+        let y2: i16 = (row as f64 * rad.cos() + column as f64 * rad.sin()).round() as i16;
+        //check to make sure coords are in bounds
+        if y2 < 0 || y2 >= height || x2 < 0 || x2 >= width {
+          continue;
+        }
+        //round, then color? make sure there are no gaps
+        let color = og_bmp.get_color_of_px(column as usize, row as usize).unwrap();
+        //also color floor/ceil?
+        self.change_color_of_pixel(x2 as u16, y2 as u16, color)?;
+      }
+    }
+    return Ok(());
   }
   //shape, line making functions
   pub fn draw_line(&mut self, fill: [u8; 4], p1: [u16; 2], p2: [u16; 2]) -> Result<(), ErrorKind> {

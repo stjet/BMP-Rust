@@ -132,9 +132,17 @@ fn main() {
   let mut translate_file2 = translate_file.clone();
   let mut translate_file3 = translate_file.clone();
   translate_file.translate(-3, 5).expect("Translate failed");
-  translate_file.save_to_new("example/images/translate1.bmp");
+  translate_file.save_to_new("example/images/translate1.bmp").expect("Failed to write to file");
   translate_file2.translate(0, 2).expect("Translate failed");
-  translate_file2.save_to_new("example/images/translate2.bmp");
+  translate_file2.save_to_new("example/images/translate2.bmp").expect("Failed to write to file");
   translate_file3.translate(-25, 40).expect("Translate failed");
-  translate_file3.save_to_new("example/images/translate3.bmp");
+  translate_file3.save_to_new("example/images/translate3.bmp").expect("Failed to write to file");
+  println!("Rotate test");
+  let mut rotate_file = BMP::new_from_file("example/images/small_example.bmp");
+  let mut rotate_file2 = rotate_file.clone();
+  let mut rotate_file3 = rotate_file.clone();
+  rotate_file2.rotate(-39.0).expect("Rotate failed");
+  rotate_file2.save_to_new("example/images/rotate2.bmp").expect("Failed to write to file");
+  rotate_file3.rotate(275.0).expect("Rotate failed");
+  rotate_file3.save_to_new("example/images/rotate3.bmp").expect("Failed to write to file");
 }
