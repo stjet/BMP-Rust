@@ -1340,6 +1340,7 @@ impl BMP {
         //also color floor/ceil?
         self.change_color_of_pixel(x2 as u16, y2 as u16, color)?;
       }
+      //fill in holes
     }
     return Ok(());
   }
@@ -1597,7 +1598,7 @@ impl BMP {
           queue.push([x2 as u16, y2+1 as u16]);
         }
       }
-      if y2-1 > 0 {
+      if y2 != 0 {
         //does not go all the way to up color
         let up_color = self.get_color_of_px(x2 as usize, (y2-1) as usize);
         let up_color: [u8; 4] = match up_color {
@@ -1608,7 +1609,7 @@ impl BMP {
           queue.push([x2 as u16, y2-1 as u16]);
         }
       }
-      if x2-1 > 0 {
+      if x2 != 0 {
         let left_color = self.get_color_of_px((x2-1) as usize, y2 as usize);
         let left_color: [u8; 4] = match left_color {
           Ok(returned_left_color) => returned_left_color,

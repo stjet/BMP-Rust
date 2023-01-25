@@ -48,7 +48,8 @@ fn main() {
   small_file.save_to_new("example/images/e.bmp").expect("Failed to write to file");
   let mut small_file2 = BMP::new_from_file("example/images/e.bmp");
   //fill color may not be right
-  small_file2.fill_bucket([155, 42, 66, 255], 35, 40).expect("Failed to bucket fill");
+  //small_file2.fill_bucket([155, 42, 66, 255], 35, 40).expect("Failed to bucket fill");
+  small_file2.fill_bucket([155, 42, 66, 255], 1, 1).expect("Failed to bucket fill");
   small_file2.save_to_new("example/images/e2.bmp").expect("Failed to write to file");
   println!("Draw line test");
   //bug: coords are WRONG
