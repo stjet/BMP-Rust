@@ -8,7 +8,8 @@ fn main() {
   let file_size = file.get_size(true);
   println!("File size (bytes): {}", file_size);
   assert_eq!(file_size/1024, BMP::num_bytes_to_kilobytes(file_size));
-  assert_eq!((((5 as i8)-(13 as i8)).abs() as u8), 8);
+  assert_eq!(BMP::rgba_to_hex([45, 77, 0, 255]), "2D4D00FF".to_string());
+  assert_eq!(BMP::hex_to_rgba("F7BA9E11".to_string()), [247, 186, 158, 17]);
   let dib_header = file.get_dib_header();
   //height, width, bitcount, etc dib size
   if let Ok(unwrapped_dib_header) = dib_header {

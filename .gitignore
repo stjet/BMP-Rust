@@ -3,3 +3,5 @@ Cargo.lock
 target/
 replit.nix
 main
+main.exe
+main.pdb

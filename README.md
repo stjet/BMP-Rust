@@ -6,7 +6,7 @@ Obviously, install Rust. Add bmp-rust to your Cargo.toml file
 
 ```toml
 [dependencies]
-bmp-rust ="0.2.4"
+bmp-rust ="0.2.6"
 ```
 
 You can now use the crate:
@@ -16,6 +16,8 @@ use bmp_rust::bmp::BMP;
 ```
 
 ## Documentation
+The [docs.rs](https://docs.rs/bmp-rust/latest/bmp_rust/bmp/index.html) page contains documentation for all functions and types in this library.
+
 First, load a BMP file by file path, or create a new one:
 ```rust
 let mut bmp_from_file = BMP::new_from_file("midnight.bmp");
@@ -45,5 +47,3 @@ bmp_from_file.translate(-3, 5);
 ```
 
 Look at the [source code](src/bmp.rs) or [tests/example](example/main.rs) for more functions, and their usage.
-
-[docs.rs](https://docs.rs/bmp-rust/0.2.4/bmp_rust/bmp/index.html)

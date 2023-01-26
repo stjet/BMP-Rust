@@ -502,6 +502,33 @@ impl BMP {
       return "Similar to ".to_string()+colors.get(&closest).unwrap();
     }
   }
+  pub fn rgba_to_hex(rgba: [u8; 4]) -> String {
+    let hex_chars: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];
+    let mut hex: String = String::new();
+    //each u8 is two hex chars
+    for i in 0..rgba.len() {
+      let num = rgba[i];
+      hex += &hex_chars[(num as f64 / 16 as f64).floor() as usize].to_string();
+      hex += &hex_chars[(num % 16) as usize].to_string();
+    }
+    return hex;
+  }
+  pub fn hex_to_rgba(hex: String) -> [u8; 4] {
+    let hex_chars: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];
+    let mut rgba: [u8; 4] = [0; 4];
+    let mut current_num: u8 = 0;
+    for (i, c) in hex.chars().enumerate() {
+      println!("{}", current_num);
+      if i%2 == 0 {
+        current_num += 16*hex_chars.iter().position(|c_h| c_h == &c).unwrap() as u8;
+      } else {
+        current_num += hex_chars.iter().position(|c_h| c_h == &c).unwrap() as u8;
+        rgba[(i as f64/2 as f64).floor() as usize] = current_num;
+        current_num = 0;
+      }
+    }
+    return rgba;
+  }
   pub fn composite_colors(color1: [u8; 4], color2: [u8; 4]) -> [u8; 4] {
     //convert the a from range 0-255 to range 0-1 (alpha_to_percentage)
     let a1 = BMP::alpha_to_percentage(color1[3]);
