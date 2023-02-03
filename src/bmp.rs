@@ -25,6 +25,7 @@ pub enum ErrorKind {
   WrongFileType,
   UseExtraBitMasks,
   FailedToWrite,
+  BlurRadiusInvalid,
   Missing,
 }
 
@@ -36,6 +37,7 @@ impl ErrorKind {
       ErrorKind::WrongFileType => "Wrong file type. Must be a .bmp file",
       ErrorKind::UseExtraBitMasks => "Use extra bit masks instead",
       ErrorKind::FailedToWrite => "Failed to write to file",
+      ErrorKind::BlurRadiusInvalid => "Blur radius is invalid since bigger than 16 or is 0",
       ErrorKind::Missing => "Missing expected parameter or object",
     }
   }
@@ -823,7 +825,7 @@ impl BMP {
     //figure out is padded
     //monochrome is 1 bit per pixel. lets not support that for now
     //Vec<[[u8; dib_header.bitcount/4]; dib_header.width]>
-    //change to array https://discord.com/channels/273534239310479360/273541522815713281/951356330696912967
+    //then change to array (must change to vector first since array size cannot be dynamic)
     let mut rows: VecDeque<Vec<Vec<u8>>> = VecDeque::new();
     let header = self.get_header();
     if dib_header.height < 0 {
@@ -1370,6 +1372,64 @@ impl BMP {
       //fill in holes
     }
     return Ok(());
+  }
+  //blur
+  pub fn separable_blur(&mut self, radius: u8, gen_distribution: impl Fn(u8, u8) -> u16) -> Result<(), ErrorKind> {
+    //a separable blur can be separated into two passes, horizontal and vertical, instead of applying the whole square, meaning much more efficient
+    //gen_distribution is a closure that, based on radius and 1d distance from center, spits out a weighting
+    //all the weightings will be added up, and the color of that pixel will be multiplied by weighting/all weightings,
+    //and added together with all other pixels in row/column, and be the new pixel color
+    //must be odd number, less than 15?
+    if radius > 16 || radius == 0 {
+      return Err(ErrorKind::BlurRadiusInvalid);
+    }
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    let height: u16 = dib_header.height.abs() as u16;
+    let width: u16 = dib_header.width as u16;
+    //change every pixel
+    for y in 0..height {
+      for x in 0..width {
+        //do horizontal blur
+        //
+        //do vertical blur
+        //
+      }
+    }
+    return Ok(());
+  }
+  pub fn box_blur(&mut self, radius: u8) -> Result<(), ErrorKind> {
+    //in box blur the kernel is just the same for all pixels
+    let gen_box_distribution = |_radius: u8, _distance: u8| -> u16 {
+      1u16
+    };
+    return self.separable_blur(radius, gen_box_distribution);
+  }
+  pub fn gaussian_blur(&mut self, radius: u8) -> Result<(), ErrorKind> {
+    //cheat and use pascal's triangle for distribution
+    let gen_gaussian_distribution = |radius: u8, distance: u8| -> u16 {
+      //https://en.wikipedia.org/wiki/Pascal%27s_triangle#Calculating_a_row_or_diagonal_by_itself
+      if distance == radius {
+        //endpoints are always 1
+        return 1.0;
+      }
+      //add one for the center point, subtract one since rows start at 0
+      let n = radius*2+1-1;
+      let k = radius-distance;
+      let mut term: f64 = 1.0;
+      for i in 1..radius+2 {
+        println!("term {} {} {} {}", term, n, i, ((n+1-i) as f64/i as f64));
+        term = term as f64 * ((n+1-i) as f64/i as f64);
+        if i == k {
+          break;
+        }
+      }
+      return term as u16;
+    };
+    return self.separable_blur(radius, gen_gaussian_distribution);
   }
   //shape, line making functions
   pub fn draw_line(&mut self, fill: [u8; 4], p1: [u16; 2], p2: [u16; 2]) -> Result<(), ErrorKind> {
