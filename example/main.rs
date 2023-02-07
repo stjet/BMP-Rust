@@ -147,4 +147,7 @@ fn main() {
   rotate_file2.save_to_new("example/images/rotate2.bmp").expect("Failed to write to file");
   rotate_file3.rotate(275.0).expect("Rotate failed");
   rotate_file3.save_to_new("example/images/rotate3.bmp").expect("Failed to write to file");
+  let mut blur_file = BMP::new_from_file("example/images/blur_attempt.bmp");
+  blur_file.gaussian_blur(3).expect("Failed to blur");
+  blur_file.save_to_new("example/images/gaussian_blur.bmp").expect("Failed to write to file");
 }

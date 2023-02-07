@@ -520,7 +520,6 @@ impl BMP {
     let mut rgba: [u8; 4] = [0; 4];
     let mut current_num: u8 = 0;
     for (i, c) in hex.chars().enumerate() {
-      println!("{}", current_num);
       if i%2 == 0 {
         current_num += 16*hex_chars.iter().position(|c_h| c_h == &c).unwrap() as u8;
       } else {
@@ -1374,14 +1373,18 @@ impl BMP {
     return Ok(());
   }
   //blur
-  pub fn separable_blur(&mut self, radius: u8, gen_distribution: impl Fn(u8, u8) -> u16) -> Result<(), ErrorKind> {
+  pub fn separable_blur(&mut self, radius: u8, gen_distribution: impl Fn(u8, u8) -> u16, horizontal: Option<bool>, vertical: Option<bool>) -> Result<(), ErrorKind> {
     //a separable blur can be separated into two passes, horizontal and vertical, instead of applying the whole square, meaning much more efficient
     //gen_distribution is a closure that, based on radius and 1d distance from center, spits out a weighting
     //all the weightings will be added up, and the color of that pixel will be multiplied by weighting/all weightings,
     //and added together with all other pixels in row/column, and be the new pixel color
-    //must be odd number, less than 15?
-    if radius > 16 || radius == 0 {
-      return Err(ErrorKind::BlurRadiusInvalid);
+    let mut do_horizontal: bool = true;
+    let mut do_vertical: bool = true;
+    if horizontal.is_some() {
+      do_horizontal = horizontal.unwrap();
+    }
+    if vertical.is_some() {
+      do_vertical = vertical.unwrap();
     }
     let dib_header = self.get_dib_header();
     let dib_header = match dib_header {
@@ -1390,13 +1393,130 @@ impl BMP {
     };
     let height: u16 = dib_header.height.abs() as u16;
     let width: u16 = dib_header.width as u16;
+    if radius > 16 || radius == 0 {
+      return Err(ErrorKind::BlurRadiusInvalid);
+    }
     //change every pixel
     for y in 0..height {
       for x in 0..width {
+        //calculate weights
+        let mut weights: Vec<u16> = Vec::new();
+        for l in 0..radius {
+          //calculate weights to the left
+          weights.push(gen_distribution(radius, radius-l));
+        }
+        weights.push(gen_distribution(radius, 0));
+        for r in 0..radius {
+          //calculate weights to the right
+          weights.push(gen_distribution(radius, r+1));
+        }
+        let mut total_weight: u16 = 0;
+        for w in weights.clone() {
+          total_weight += w;
+        }
         //do horizontal blur
-        //
-        //do vertical blur
-        //
+        if do_horizontal {
+          let mut total_weight_h = total_weight;
+          //check if out of bounds, calculate horizontal weights
+          for hl_b in 1..radius+1 {
+            if x < hl_b as u16 {
+              //out of bounds
+              total_weight_h -= weights[(radius-hl_b) as usize];
+            }
+          }
+          for hr_b in 1..radius+1 {
+            if x+hr_b as u16 >= width {
+              //out of bounds
+              total_weight_h -= weights[(radius+hr_b) as usize];
+            }
+          }
+          //get pixel values, multiply and add them together
+          let mut new_r_h: f64 = 0.0;
+          let mut new_g_h: f64 = 0.0;
+          let mut new_b_h: f64 = 0.0;
+          let mut new_a_h: f64 = 0.0;
+          for hl in 1..radius+1 {
+            if x >= hl as u16 {
+              //not out of bounds
+              let hl_color = self.get_color_of_px((x-hl as u16) as usize, y as usize).unwrap();
+              new_r_h += hl_color[0] as f64 * (weights[(radius-hl) as usize] as f64) / total_weight_h as f64;
+              new_g_h += hl_color[1] as f64 * (weights[(radius-hl) as usize] as f64) / total_weight_h as f64;
+              new_b_h += hl_color[2] as f64 * (weights[(radius-hl) as usize] as f64) / total_weight_h as f64;
+              new_a_h += hl_color[3] as f64 * (weights[(radius-hl) as usize] as f64) / total_weight_h as f64;
+            }
+          }
+          let center_color = self.get_color_of_px(x as usize, y as usize).unwrap();
+          new_r_h += center_color[0] as f64 * (weights[(radius) as usize] as f64) / total_weight_h as f64;
+          new_g_h += center_color[1] as f64 * (weights[(radius) as usize] as f64) / total_weight_h as f64;
+          new_b_h += center_color[2] as f64 * (weights[(radius) as usize] as f64) / total_weight_h as f64;
+          new_a_h += center_color[3] as f64 * (weights[(radius) as usize] as f64) / total_weight_h as f64;
+          for hr in 1..radius+1 {
+            if x+(hr as u16) < width {
+              //not out of bounds
+              let hr_color = self.get_color_of_px((x+hr as u16) as usize, y as usize).unwrap();
+              new_r_h += hr_color[0] as f64 * (weights[(radius-hr) as usize] as f64) / total_weight_h as f64;
+              new_g_h += hr_color[1] as f64 * (weights[(radius-hr) as usize] as f64) / total_weight_h as f64;
+              new_b_h += hr_color[2] as f64 * (weights[(radius-hr) as usize] as f64) / total_weight_h as f64;
+              new_a_h += hr_color[3] as f64 * (weights[(radius-hr) as usize] as f64) / total_weight_h as f64;
+            }
+          }
+          //round values
+          let new_color: [u8; 4] = [new_r_h.round() as u8, new_g_h.round() as u8, new_b_h.round() as u8, new_a_h.round() as u8];
+          //write to pixel
+          self.change_color_of_pixel(x, y, new_color).unwrap();
+        }
+        //repeat for vertical blur
+        if do_vertical {
+          let mut total_weight_v = total_weight;
+          //check if out of bounds, calculate horizontal weights
+          for vu_b in 1..radius+1 {
+            if y < vu_b as u16 {
+              //out of bounds
+              total_weight_v -= weights[(radius-vu_b) as usize];
+            }
+          }
+          for vd_b in 1..radius+1 {
+            if y+vd_b as u16 >= width {
+              //out of bounds
+              total_weight_v -= weights[(radius+vd_b) as usize];
+            }
+          }
+          //get pixel values, multiply and add them together
+          let mut new_r_h: f64 = 0.0;
+          let mut new_g_h: f64 = 0.0;
+          let mut new_b_h: f64 = 0.0;
+          let mut new_a_h: f64 = 0.0;
+          for vu in 1..radius+1 {
+            if y >= vu as u16 {
+              //not out of bounds
+              let vu_color = self.get_color_of_px(x as usize, (y-vu as u16) as usize).unwrap();
+              new_r_h += vu_color[0] as f64 * (weights[(radius-vu) as usize] as f64) / total_weight_v as f64;
+              new_g_h += vu_color[1] as f64 * (weights[(radius-vu) as usize] as f64) / total_weight_v as f64;
+              new_b_h += vu_color[2] as f64 * (weights[(radius-vu) as usize] as f64) / total_weight_v as f64;
+              new_a_h += vu_color[3] as f64 * (weights[(radius-vu) as usize] as f64) / total_weight_v as f64;
+            }
+          }
+          //
+          let center_color = self.get_color_of_px(x as usize, y as usize).unwrap();
+          new_r_h += center_color[0] as f64 * (weights[(radius) as usize] as f64) / total_weight_v as f64;
+          new_g_h += center_color[1] as f64 * (weights[(radius) as usize] as f64) / total_weight_v as f64;
+          new_b_h += center_color[2] as f64 * (weights[(radius) as usize] as f64) / total_weight_v as f64;
+          new_a_h += center_color[3] as f64 * (weights[(radius) as usize] as f64) / total_weight_v as f64;
+          for vd in 1..radius+1 {
+            if y+(vd as u16) < height {
+              //not out of bounds
+              let vd_color = self.get_color_of_px(x as usize, (y+vd as u16) as usize).unwrap();
+              new_r_h += vd_color[0] as f64 * (weights[(radius-vd) as usize] as f64) / total_weight_v as f64;
+              new_g_h += vd_color[1] as f64 * (weights[(radius-vd) as usize] as f64) / total_weight_v as f64;
+              new_b_h += vd_color[2] as f64 * (weights[(radius-vd) as usize] as f64) / total_weight_v as f64;
+              new_a_h += vd_color[3] as f64 * (weights[(radius-vd) as usize] as f64) / total_weight_v as f64;
+            }
+          }
+          //round values
+          let new_color: [u8; 4] = [new_r_h.round() as u8, new_g_h.round() as u8, new_b_h.round() as u8, new_a_h.round() as u8];
+          //write to pixel
+          self.change_color_of_pixel(x, y, new_color).unwrap();
+        }
       }
     }
     return Ok(());
@@ -1406,7 +1526,7 @@ impl BMP {
     let gen_box_distribution = |_radius: u8, _distance: u8| -> u16 {
       1u16
     };
-    return self.separable_blur(radius, gen_box_distribution);
+    return self.separable_blur(radius, gen_box_distribution, None, None);
   }
   pub fn gaussian_blur(&mut self, radius: u8) -> Result<(), ErrorKind> {
     //cheat and use pascal's triangle for distribution
@@ -1414,14 +1534,13 @@ impl BMP {
       //https://en.wikipedia.org/wiki/Pascal%27s_triangle#Calculating_a_row_or_diagonal_by_itself
       if distance == radius {
         //endpoints are always 1
-        return 1.0;
+        return 1u16;
       }
       //add one for the center point, subtract one since rows start at 0
       let n = radius*2+1-1;
       let k = radius-distance;
       let mut term: f64 = 1.0;
       for i in 1..radius+2 {
-        println!("term {} {} {} {}", term, n, i, ((n+1-i) as f64/i as f64));
         term = term as f64 * ((n+1-i) as f64/i as f64);
         if i == k {
           break;
@@ -1429,7 +1548,7 @@ impl BMP {
       }
       return term as u16;
     };
-    return self.separable_blur(radius, gen_gaussian_distribution);
+    return self.separable_blur(radius, gen_gaussian_distribution, None, None);
   }
   //shape, line making functions
   pub fn draw_line(&mut self, fill: [u8; 4], p1: [u16; 2], p2: [u16; 2]) -> Result<(), ErrorKind> {
