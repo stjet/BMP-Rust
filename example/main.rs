@@ -150,4 +150,7 @@ fn main() {
   let mut blur_file = BMP::new_from_file("example/images/blur_attempt.bmp");
   blur_file.gaussian_blur(3).expect("Failed to blur");
   blur_file.save_to_new("example/images/gaussian_blur.bmp").expect("Failed to write to file");
+  let mut blur_file2 = BMP::new_from_file("example/images/blur_attempt2.bmp");
+  blur_file2.gaussian_blur(4).expect("Failed to blur");
+  blur_file2.save_to_new("example/images/gaussian_blur2.bmp").expect("Failed to write to file");
 }
