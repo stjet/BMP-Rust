@@ -153,4 +153,20 @@ fn main() {
   let mut blur_file2 = BMP::new_from_file("example/images/blur_attempt2.bmp");
   blur_file2.gaussian_blur(4).expect("Failed to blur");
   blur_file2.save_to_new("example/images/gaussian_blur2.bmp").expect("Failed to write to file");
+  println!("Grayscale test");
+  let mut grayscale_file1 = BMP::new_from_file("example/images/small_example.bmp");
+  grayscale_file1.grayscale().expect("Failed to grayscale");
+  grayscale_file1.save_to_new("example/images/grayscale.bmp").expect("Failed to write to file");
+  let mut grayscale_file2 = BMP::new_from_file("example/images/small_example.bmp");
+  grayscale_file2.channel_grayscale(bmp::bmp::RGBAChannel::Red).expect("Failed to channel grayscale");
+  grayscale_file2.save_to_new("example/images/grayscale_r.bmp").expect("Failed to write to file");
+  let mut grayscale_file3 = BMP::new_from_file("example/images/small_example.bmp");
+  grayscale_file3.channel_grayscale(bmp::bmp::RGBAChannel::Green).expect("Failed to channel grayscale");
+  grayscale_file3.save_to_new("example/images/grayscale_g.bmp").expect("Failed to write to file");
+  let mut grayscale_file4 = BMP::new_from_file("example/images/small_example.bmp");
+  grayscale_file4.channel_grayscale(bmp::bmp::RGBAChannel::Blue).expect("Failed to channel grayscale");
+  grayscale_file4.save_to_new("example/images/grayscale_b.bmp").expect("Failed to write to file");
+  let mut grayscale_file5 = BMP::new_from_file("example/images/small_example.bmp");
+  grayscale_file5.channel_grayscale(bmp::bmp::RGBAChannel::Alpha).expect("Failed to channel grayscale");
+  grayscale_file5.save_to_new("example/images/grayscale_a.bmp").expect("Failed to write to file");
 }

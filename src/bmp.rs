@@ -55,6 +55,23 @@ impl fmt::Display for ErrorKind {
   }
 }
 
+//Color
+pub enum RGBAChannel {
+  Red,
+  Green,
+  Blue,
+  Alpha,
+}
+
+//todo: move color related functions as impl of this
+pub struct RGBA {
+  //
+}
+
+impl RGBA {
+  //
+}
+
 //File header
 #[allow(non_snake_case)]
 #[derive(Clone)]
@@ -542,6 +559,12 @@ impl BMP {
     let c0_1: f64 = (color1[1] as f64*a1 + color2[1] as f64*a2*(1 as f64-a1))/a0;
     let c0_2: f64 = (color1[2] as f64*a1 + color2[2] as f64*a2*(1 as f64-a1))/a0;
     return [c0_0.round() as u8, c0_1.round() as u8, c0_2.round() as u8, BMP::percentage_to_alpha(a0)];
+  }
+  pub fn rgb_to_grayscale(rgba: [u8; 4]) -> [u8; 4] {
+    //alpha channel ignored
+    //0.2126R + 0.7152G + 0.0722B
+    let gray: u8 = (0.2126*rgba[0] as f64 + 0.7152*rgba[1] as f64 + 0.0722*rgba[2] as f64).round() as u8;
+    return [gray, gray, gray, rgba[3]];
   }
   //file header related
   pub fn get_header(&self) -> BITMAPFILEHEADER {
@@ -1578,7 +1601,7 @@ impl BMP {
     }
     return Ok(());
   }
-  //blur
+  //blurs
   pub fn separable_blur(&mut self, radius: u8, gen_distribution: impl Fn(u8, u8) -> u16, horizontal: Option<bool>, vertical: Option<bool>) -> Result<(), ErrorKind> {
     //a separable blur can be separated into two passes, horizontal and vertical, instead of applying the whole square, meaning much more efficient
     //gen_distribution is a closure that, based on radius and 1d distance from center, spits out a weighting
@@ -1785,6 +1808,79 @@ impl BMP {
       return term as u16;
     };
     return self.separable_blur(radius, gen_gaussian_distribution, None, None);
+  }
+  //filters
+  pub fn grayscale(&mut self) -> Result<(), ErrorKind> {
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    let height: u16 = dib_header.height.abs() as u16;
+    let width: u16 = dib_header.width as u16;
+    let pixel_data = self.get_pixel_data();
+    let pixel_data = match pixel_data {
+      Ok(returned_pixel_data) => returned_pixel_data,
+      Err(e) => return Err(e),
+    };
+    let header = self.get_header();
+    //change every pixel
+    for y in 0..height {
+      for x in 0..width {
+        //get pixel color
+        //although we are actively changing the pixel data, because we query the color before it is changed, we can use the old one for efficiency
+        let old_color = self.get_color_of_px_efficient(x as usize, y as usize, &dib_header, &pixel_data);
+        let old_color: [u8; 4] = match old_color {
+          Ok(returned_color) => returned_color,
+          Err(e) => return Err(e),
+        };
+        //change pixel color, preserving alpha channel
+        self.change_color_of_pixel_efficient(x, y, BMP::rgb_to_grayscale(old_color), &dib_header, &header)?;
+      }
+    }
+    return Ok(());
+  }
+  pub fn channel_grayscale(&mut self, channel: RGBAChannel) -> Result<(), ErrorKind> {
+    //use r, g, b, or a channel to turn into gray scale image
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    let height: u16 = dib_header.height.abs() as u16;
+    let width: u16 = dib_header.width as u16;
+    let pixel_data = self.get_pixel_data();
+    let pixel_data = match pixel_data {
+      Ok(returned_pixel_data) => returned_pixel_data,
+      Err(e) => return Err(e),
+    };
+    let header = self.get_header();
+    //change every pixel
+    for y in 0..height {
+      for x in 0..width {
+        //get pixel color
+        //although we are actively changing the pixel data, because we query the color before it is changed, we can use the old one for efficiency
+        let old_color = self.get_color_of_px_efficient(x as usize, y as usize, &dib_header, &pixel_data);
+        let old_color: [u8; 4] = match old_color {
+          Ok(returned_color) => returned_color,
+          Err(e) => return Err(e),
+        };
+        let use_color: u8;
+        match channel {
+          RGBAChannel::Red => use_color = old_color[0],
+          RGBAChannel::Green => use_color = old_color[1],
+          RGBAChannel::Blue => use_color = old_color[2],
+          RGBAChannel::Alpha => {
+            use_color = old_color[3];
+            self.change_color_of_pixel_efficient(x, y, [use_color, use_color, use_color, use_color], &dib_header, &header)?;
+            return Ok(());
+          },
+        }
+        //change pixel color, preserving alpha channel
+        self.change_color_of_pixel_efficient(x, y, [use_color, use_color, use_color, old_color[3]], &dib_header, &header)?;
+      }
+    }
+    return Ok(());
   }
   //shape, line making functions
   pub fn draw_line(&mut self, fill: [u8; 4], p1: [u16; 2], p2: [u16; 2]) -> Result<(), ErrorKind> {
