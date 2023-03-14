@@ -63,13 +63,34 @@ pub enum RGBAChannel {
   Alpha,
 }
 
-//todo: move color related functions as impl of this
-pub struct RGBA {
-  //
+//BMP Diff
+#[derive(Debug)]
+pub struct PixelDiff {
+  pub coord: [u16; 2],
+  pub color1: Option<[u8; 4]>,
+  pub color2: Option<[u8; 4]>,
 }
 
-impl RGBA {
-  //
+#[derive(Debug)]
+pub struct ImageDiff {
+  pub diff: Vec<PixelDiff>,
+}
+
+impl IntoIterator for ImageDiff {
+  type Item = PixelDiff;
+  type IntoIter = std::vec::IntoIter<Self::Item>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    self.diff.into_iter()
+  }
+}
+
+impl std::ops::Index<usize> for ImageDiff {
+  type Output = PixelDiff;
+
+  fn index(&self, index: usize) -> &Self::Output {
+    &self.diff[index]
+  }
 }
 
 //File header
@@ -383,7 +404,11 @@ impl BMP {
     for _pixel_num in 0..(width*height as u32) {
       //white by default
       if default_color.is_some() {
-        contents.extend(default_color.unwrap());
+        //change rgb to bgr
+        let mut bgr_default_color = default_color.unwrap().clone();
+        bgr_default_color[0] = default_color.unwrap()[2];
+        bgr_default_color[2] = default_color.unwrap()[0];
+        contents.extend(bgr_default_color);
       } else {
         contents.extend([255, 255, 255, 255]);
       }
@@ -590,6 +615,77 @@ impl BMP {
     } else {
       return self.contents.len().try_into().unwrap();
     }
+  }
+  //diff util
+  pub fn diff(bmp1: &BMP, bmp2: &BMP) -> Result<ImageDiff, ErrorKind> {
+    //compare two bmps, should work even if the two bmps are different sizes
+    //find the largest height and width of the two bmps
+    let dib_header1 = bmp1.get_dib_header();
+    let dib_header1 = match dib_header1 {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    let dib_header2 = bmp2.get_dib_header();
+    let dib_header2 = match dib_header2 {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    let pixel_data1 = bmp1.get_pixel_data();
+    let pixel_data1 = match pixel_data1 {
+      Ok(returned_pixel_data) => returned_pixel_data,
+      Err(e) => return Err(e),
+    };
+    let pixel_data2 = bmp2.get_pixel_data();
+    let pixel_data2 = match pixel_data2 {
+      Ok(returned_pixel_data) => returned_pixel_data,
+      Err(e) => return Err(e),
+    };
+    let largest_height: u32;
+    if dib_header1.height.abs() > dib_header2.height.abs() {
+      largest_height = dib_header1.height.abs() as u32;
+    } else {
+      //will trigger not only if bmp2 has more height, but also if both are same height
+      //but if both are same height, doesn't matter which we pick
+      largest_height = dib_header2.height.abs() as u32;
+    }
+    let largest_width: u32;
+    if dib_header1.width > dib_header2.width {
+      largest_width = dib_header1.width;
+    } else {
+      largest_width = dib_header2.width;
+    }
+    //find the different pixels
+    let mut diff_pixels: Vec<PixelDiff> = Vec::new();
+    for y in 0..largest_height {
+      for x in 0..largest_width {
+        let color1: Option<[u8; 4]>;
+        let color2: Option<[u8; 4]>;
+        if x >= dib_header1.width || y >= dib_header1.height.abs() as u32 {
+          color1 = None;
+        } else {
+          color1 = Some(bmp1.get_color_of_px_efficient(x as usize, y as usize, &dib_header1, &pixel_data1).unwrap());
+        }
+        if x >= dib_header2.width || y >= dib_header2.height.abs() as u32 {
+          color2 = None;
+        } else {
+          color2 = Some(bmp2.get_color_of_px_efficient(x as usize, y as usize, &dib_header2, &pixel_data2).unwrap());
+        }
+        if color1 != color2 {
+          diff_pixels.push(PixelDiff {
+            coord: [x as u16, y as u16],
+            color1,
+            color2,
+          });
+        }
+      }
+    }
+    return Ok(ImageDiff {
+      diff: diff_pixels,
+    });
+  }
+  //is from file
+  pub fn is_from_file(&self) -> bool {
+    self.from_file
   }
   //dib header related
   pub fn get_dib_header(&self) -> Result<DIBHEADER, ErrorKind> {
@@ -1839,6 +1935,10 @@ impl BMP {
       }
     }
     return Ok(());
+  }
+  pub fn greyscale(&mut self) -> Result<(), ErrorKind> {
+    //just an alias function with 'grey' instead of 'gray'
+    self.grayscale()
   }
   pub fn channel_grayscale(&mut self, channel: RGBAChannel) -> Result<(), ErrorKind> {
     //use r, g, b, or a channel to turn into gray scale image

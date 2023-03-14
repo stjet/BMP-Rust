@@ -5,6 +5,7 @@ use bmp::bmp::BMP;
 fn main() {
   println!("{:?}", BMP::composite_colors([233,71,255,200], [0,0,0,0]));
   let file = BMP::new_from_file("example/images/example.bmp");  //tests of bmp lib
+  assert_eq!(true, file.is_from_file());
   let file_size = file.get_size(true);
   println!("File size (bytes): {}", file_size);
   assert_eq!(file_size/1024, BMP::num_bytes_to_kilobytes(file_size));
@@ -155,7 +156,7 @@ fn main() {
   blur_file2.save_to_new("example/images/gaussian_blur2.bmp").expect("Failed to write to file");
   println!("Grayscale test");
   let mut grayscale_file1 = BMP::new_from_file("example/images/small_example.bmp");
-  grayscale_file1.grayscale().expect("Failed to grayscale");
+  grayscale_file1.greyscale().expect("Failed to grayscale");
   grayscale_file1.save_to_new("example/images/grayscale.bmp").expect("Failed to write to file");
   let mut grayscale_file2 = BMP::new_from_file("example/images/small_example.bmp");
   grayscale_file2.channel_grayscale(bmp::bmp::RGBAChannel::Red).expect("Failed to channel grayscale");
@@ -169,4 +170,16 @@ fn main() {
   let mut grayscale_file5 = BMP::new_from_file("example/images/small_example.bmp");
   grayscale_file5.channel_grayscale(bmp::bmp::RGBAChannel::Alpha).expect("Failed to channel grayscale");
   grayscale_file5.save_to_new("example/images/grayscale_a.bmp").expect("Failed to write to file");
+  //test diff
+  //default color is [255, 255, 255, 255]
+  println!("Diff test");
+  let tiny_file1 = BMP::new(2, 2, None);
+  let tiny_file2 = BMP::new(2, 3, None);
+  let diff_1_2 = BMP::diff(&tiny_file1, &tiny_file2).unwrap();
+  assert_eq!(diff_1_2[0].color1, None);
+  assert_eq!(diff_1_2[0].color2, Some([255, 255, 255, 255]));
+  let tiny_file3 = BMP::new(2, 3, Some([100, 100, 23, 255]));
+  let diff_1_3 = BMP::diff(&tiny_file1, &tiny_file3).unwrap();
+  assert_eq!(diff_1_3[0].color1, Some([255, 255, 255, 255]));
+  assert_eq!(diff_1_3[0].color2, Some([100, 100, 23, 255]));
 }
