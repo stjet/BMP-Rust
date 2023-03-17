@@ -73,6 +73,8 @@ pub struct PixelDiff {
 
 #[derive(Debug)]
 pub struct ImageDiff {
+  pub image1_size: [u32; 2],
+  pub image2_size: [u32; 2],
   pub diff: Vec<PixelDiff>,
 }
 
@@ -90,6 +92,16 @@ impl std::ops::Index<usize> for ImageDiff {
 
   fn index(&self, index: usize) -> &Self::Output {
     &self.diff[index]
+  }
+}
+
+impl ImageDiff {
+  fn is_same_size(&self) -> bool {
+    if self.image1_size == self.image2_size {
+      true
+    } else {
+      false
+    }
   }
 }
 
@@ -680,6 +692,8 @@ impl BMP {
       }
     }
     return Ok(ImageDiff {
+      image1_size: [dib_header1.width as u32, dib_header1.height.abs() as u32],
+      image2_size: [dib_header2.width as u32, dib_header2.height.abs() as u32],
       diff: diff_pixels,
     });
   }

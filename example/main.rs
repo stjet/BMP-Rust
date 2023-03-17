@@ -182,4 +182,7 @@ fn main() {
   let diff_1_3 = BMP::diff(&tiny_file1, &tiny_file3).unwrap();
   assert_eq!(diff_1_3[0].color1, Some([255, 255, 255, 255]));
   assert_eq!(diff_1_3[0].color2, Some([100, 100, 23, 255]));
+  let tiny_file4 = BMP::new(2, 2, Some([78, 222, 12, 150]));
+  let diff_1_4 = BMP::diff(&tiny_file1, &tiny_file4).unwrap();
+  assert_eq!(diff_1_4.is_same_size(), true);
 }

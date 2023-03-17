@@ -6,7 +6,7 @@ Obviously, install Rust. Add bmp-rust to your Cargo.toml file
 
 ```toml
 [dependencies]
-bmp-rust ="0.3.2"
+bmp-rust ="0.3.3"
 ```
 
 You can now use the crate:
