@@ -18,7 +18,7 @@ fn main() {
   let now = Instant::now();
   {
     let mut file = BMP::new_from_file("example/images/example.bmp");
-    file.gaussian_blur(3).expect("Failed to invert");
+    file.gaussian_blur(3).expect("Failed to blur");
     file.save_to_new("example/images/example_blur.bmp").expect("Failed to write to file");
   }
   let elapsed = now.elapsed();
@@ -50,7 +50,7 @@ fn main() {
 
   let now = Instant::now();
   {
-    //75 seconds currently...
+    //60 seconds currently...
     large_scratch_file2.fill_bucket([128, 128, 128, 255], 249, 249).expect("Failed to fill bucket");
     large_scratch_file2.save_to_new("example/images/large_128_fill.bmp").expect("Failed to write to file");
   }

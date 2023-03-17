@@ -144,10 +144,16 @@ fn main() {
   let mut rotate_file = BMP::new_from_file("example/images/small_example.bmp");
   let mut rotate_file2 = rotate_file.clone();
   let mut rotate_file3 = rotate_file.clone();
-  rotate_file2.rotate(-39.0).expect("Rotate failed");
+  let mut rotate_file4 = rotate_file.clone();
+  let mut rotate_file5 = rotate_file.clone();
+  rotate_file2.rotate(-39.0, None).expect("Rotate failed");
   rotate_file2.save_to_new("example/images/rotate2.bmp").expect("Failed to write to file");
-  rotate_file3.rotate(275.0).expect("Rotate failed");
+  rotate_file3.rotate(275.0, None).expect("Rotate failed");
   rotate_file3.save_to_new("example/images/rotate3.bmp").expect("Failed to write to file");
+  rotate_file4.rotate(180.0, Some([26, 26])).expect("Rotate failed");
+  rotate_file4.save_to_new("example/images/rotate4.bmp").expect("Failed to write to file");
+  rotate_file5.rotate(270.0, Some([26, 26])).expect("Rotate failed");
+  rotate_file5.save_to_new("example/images/rotate5.bmp").expect("Failed to write to file");
   let mut blur_file = BMP::new_from_file("example/images/blur_attempt.bmp");
   blur_file.gaussian_blur(3).expect("Failed to blur");
   blur_file.save_to_new("example/images/gaussian_blur.bmp").expect("Failed to write to file");

@@ -96,7 +96,7 @@ impl std::ops::Index<usize> for ImageDiff {
 }
 
 impl ImageDiff {
-  fn is_same_size(&self) -> bool {
+  pub fn is_same_size(&self) -> bool {
     if self.image1_size == self.image2_size {
       true
     } else {
@@ -1675,7 +1675,13 @@ impl BMP {
     }
     return Ok(());
   }
-  pub fn rotate(&mut self, deg: f64) -> Result<(), ErrorKind> {
+  pub fn rotate(&mut self, deg: f64, center_option: Option<[u16; 2]>) -> Result<(), ErrorKind> {
+    let center: [u16; 2];
+    if center_option.is_none() {
+      center = [0, 0];
+    } else {
+      center = center_option.unwrap();
+    }
     //change deg ro radians
     let rad: f64 = BMP::deg_to_rad(deg);
     let dib_header = self.get_dib_header();
@@ -1684,8 +1690,8 @@ impl BMP {
       Err(e) => return Err(e),
     };
     let og_bmp: BMP = self.clone();
-    let height = dib_header.height.abs() as i16;
-    let width = dib_header.width as i16;
+    let height = dib_header.height.abs() as u16;
+    let width = dib_header.width as u16;
     let og_pixel_data = self.get_pixel_data();
     let og_pixel_data = match og_pixel_data {
       Ok(returned_pixel_data) => returned_pixel_data,
@@ -1695,11 +1701,11 @@ impl BMP {
     for row in 0..height {
       for column in 0..width {
         //x2 = x cos - y sin
-        let x2: i16 = (column as f64 * rad.cos() - row as f64 * rad.sin()).round() as i16;
+        let x2: i32 = ((column as f64-center[0] as f64) * rad.cos() - (row as f64-center[1] as f64) * rad.sin()).round() as i32 + center[0] as i32;
         //y2 = y cos + x sin
-        let y2: i16 = (row as f64 * rad.cos() + column as f64 * rad.sin()).round() as i16;
+        let y2: i32 = ((row as f64-center[1] as f64) * rad.cos() + (column as f64-center[0] as f64) * rad.sin()).round() as i32 + center[1] as i32;
         //check to make sure coords are in bounds
-        if y2 < 0 || y2 >= height || x2 < 0 || x2 >= width {
+        if y2 < 0 || y2 >= i32::from(height) || x2 < 0 || x2 >= i32::from(width) {
           continue;
         }
         //round, then color? make sure there are no gaps
