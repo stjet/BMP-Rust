@@ -25,7 +25,7 @@ pub enum ErrorKind {
   WrongFileType,
   UseExtraBitMasks,
   FailedToWrite,
-  BlurRadiusInvalid,
+  RadiusInvalid,
   Missing,
 }
 
@@ -37,7 +37,7 @@ impl ErrorKind {
       ErrorKind::WrongFileType => "Wrong file type. Must be a .bmp file",
       ErrorKind::UseExtraBitMasks => "Use extra bit masks instead",
       ErrorKind::FailedToWrite => "Failed to write to file",
-      ErrorKind::BlurRadiusInvalid => "Blur radius is invalid since bigger than 16 or is 0",
+      ErrorKind::RadiusInvalid => "Blur/filter radius is invalid since bigger than 16 or is 0",
       ErrorKind::Missing => "Missing expected parameter or object",
     }
   }
@@ -293,7 +293,8 @@ impl IntoIterator for DIBHEADER {
         reserved_l[i as usize] = reserved[i as usize];
       }
       //Intent
-      let intent_table: HashMap<String, u32> = HashMap::from([        ("LCS_GM_ABS_COLORIMETRIC".to_string(), 0),
+      let intent_table: HashMap<String, u32> = HashMap::from([
+        ("LCS_GM_ABS_COLORIMETRIC".to_string(), 0),
         ("LCS_GM_BUSINESS".to_string(), 1),
         ("LCS_WINDOWS_COLOR_SPACE".to_string(), 2),
         ("LCS_GM_GRAPHICS".to_string(), 3),
@@ -611,7 +612,7 @@ impl BMP {
       bfSize: BMP::bytes_to_int(header_bytes[2..6].try_into().unwrap()),
       bfReserved1: header_bytes[6..8].try_into().unwrap(),
       bfReserved2: header_bytes[8..10].try_into().unwrap(),
-      bfOffBits: BMP::bytes_to_int(header_bytes[10..14].try_into().unwrap()) as u32,
+      bfOffBits: BMP::bytes_to_int(header_bytes[10..14].try_into().unwrap()),
     };
   }
   fn get_header_bytes(&self) -> &[u8; 14] {
@@ -692,8 +693,8 @@ impl BMP {
       }
     }
     return Ok(ImageDiff {
-      image1_size: [dib_header1.width as u32, dib_header1.height.abs() as u32],
-      image2_size: [dib_header2.width as u32, dib_header2.height.abs() as u32],
+      image1_size: [dib_header1.width, dib_header1.height.abs() as u32],
+      image2_size: [dib_header2.width, dib_header2.height.abs() as u32],
       diff: diff_pixels,
     });
   }
@@ -713,10 +714,10 @@ impl BMP {
         //"BITMAPCOREHEADER"
         dib_header = DIBHEADER {
           size: dib_size,
-          width: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+6].try_into().unwrap()) as u32,
+          width: u32::from(BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+4..HEADER_OFFSET+6].try_into().unwrap())),
           height: BMP::two_bytes_to_signed_int(self.contents[HEADER_OFFSET+6..HEADER_OFFSET+8].try_into().unwrap()) as i32,
-          planes: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+10].try_into().unwrap()) as u16,
-          bitcount: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+10..HEADER_OFFSET+12].try_into().unwrap()) as u16,
+          planes: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+8..HEADER_OFFSET+10].try_into().unwrap()),
+          bitcount: BMP::two_bytes_to_int(self.contents[HEADER_OFFSET+10..HEADER_OFFSET+12].try_into().unwrap()),
           compression: None,
           sizeimage: None,
           XPelsPerMeter: None,
@@ -1000,16 +1001,16 @@ impl BMP {
       //add rows to front of vector
       //let start: u32 = (header.bfOffBits as u32)+(row_num as u32)*row_length+(pixel as u32)*((dib_header.bitcount/8) as u32);
       let row_length = f64::from(dib_header.bitcount as u16*dib_header.width as u16/32).ceil() as u32 * 4;
-      let rows_num = (self.contents.len() as u32-header.bfOffBits)/row_length;
+      let rows_num: u32 = (self.contents.len() as u32-header.bfOffBits)/row_length;
       for row_num in 0..rows_num {
         let mut row: Vec<Vec<u8>> = Vec::new();
         for pixel in 0..dib_header.width {
           if dib_header.bitcount >= 8 {
-            let start: u32 = (header.bfOffBits)+(row_num as u32)*row_length+(pixel as u32)*((dib_header.bitcount/8) as u32);
+            let start: u32 = (header.bfOffBits)+row_num*row_length+(pixel as u32)*((dib_header.bitcount/8) as u32);
             row.push(self.contents[start as usize..(start+(dib_header.bitcount/8) as u32) as usize].to_vec());
           } else {
             //we need to do bitwise operators if the pixels are smaller than 1 byte size (1 bit, 2 bit, 4 bit)
-            let start: u32 = (header.bfOffBits)+(row_num as u32)*row_length+(pixel as u32)*(((dib_header.bitcount/8) as f64).ceil() as u32);
+            let start: u32 = (header.bfOffBits)+row_num*row_length+(pixel as u32)*(((dib_header.bitcount/8) as f64).ceil() as u32);
             let byte: u8 = self.contents[start as usize];
             if dib_header.bitcount == 1 {
               let split_bits: [u8; 8] = [byte >> 7, (byte & 0b01000000) >> 6, (byte & 0b00100000) >> 5, (byte & 0b00010000) >> 4, (byte & 0b00001000) >> 3, (byte & 0b00000100) >> 2, (byte & 0b00000010) >> 1, byte & 0b00000001];
@@ -1059,7 +1060,7 @@ impl BMP {
   }
   //interpret color data
   //returns an array rgba (4 u8)
-  pub fn get_color_of_px(&self, x: usize, y: usize) -> Result<[u8; 4], ErrorKind> {
+  pub fn get_color_of_pixel(&self, x: usize, y: usize) -> Result<[u8; 4], ErrorKind> {
     let dib_header = self.get_dib_header();
     let dib_header = match dib_header {
       Ok(returned_dib_header) => returned_dib_header,
@@ -1157,7 +1158,7 @@ impl BMP {
       if dib_header.bitcount == 16 {
         index = BMP::two_bytes_to_int(BMP::vec_to_2u8_array(pixel));
       } else {
-        index = BMP::byte_to_int(pixel[0]) as u16;
+        index = u16::from(BMP::byte_to_int(pixel[0]));
       }
       let rgba: [u8; 4];
       match color_table {
@@ -1175,7 +1176,10 @@ impl BMP {
       return Ok(rgba);
     }
   }
-  pub fn get_color_of_px_efficient(&self, x: usize, y: usize, dib_header: &DIBHEADER, pixel_data: &VecDeque<Vec<Vec<u8>>>) -> Result<[u8; 4], ErrorKind> {
+  pub fn get_color_of_px(&self, x: usize, y: usize) -> Result<[u8; 4], ErrorKind> {
+    self.get_color_of_pixel(x, y)
+  }
+  pub fn get_color_of_pixel_efficient(&self, x: usize, y: usize, dib_header: &DIBHEADER, pixel_data: &VecDeque<Vec<Vec<u8>>>) -> Result<[u8; 4], ErrorKind> {
     let pixel: &Vec<u8> = &pixel_data[y][x];
     let pixel: Vec<u8> = pixel.to_vec();
     //TODO: incorporate masks
@@ -1262,7 +1266,7 @@ impl BMP {
       if dib_header.bitcount == 16 {
         index = BMP::two_bytes_to_int(BMP::vec_to_2u8_array(pixel));
       } else {
-        index = BMP::byte_to_int(pixel[0]) as u16;
+        index = u16::from(BMP::byte_to_int(pixel[0]));
       }
       let rgba: [u8; 4];
       match color_table {
@@ -1279,6 +1283,9 @@ impl BMP {
       }
       return Ok(rgba);
     }
+  }
+  pub fn get_color_of_px_efficient(&self, x: usize, y: usize, dib_header: &DIBHEADER, pixel_data: &VecDeque<Vec<Vec<u8>>>) -> Result<[u8; 4], ErrorKind> {
+    self.get_color_of_pixel_efficient(x, y, dib_header, pixel_data)
   }
   //rgba, bgra, etc
   pub fn get_format(&self) -> String {
@@ -1739,7 +1746,7 @@ impl BMP {
     let height: u16 = dib_header.height.abs() as u16;
     let width: u16 = dib_header.width as u16;
     if radius > 16 || radius == 0 {
-      return Err(ErrorKind::BlurRadiusInvalid);
+      return Err(ErrorKind::RadiusInvalid);
     }
     //change every pixel
     //vertical blur
@@ -1769,13 +1776,13 @@ impl BMP {
           let mut total_weight_h = total_weight;
           //check if out of bounds, calculate horizontal weights
           for hl_b in 1..radius+1 {
-            if x < hl_b as u16 {
+            if x < u16::from(hl_b) {
               //out of bounds
               total_weight_h -= weights[(radius-hl_b) as usize];
             }
           }
           for hr_b in 1..radius+1 {
-            if x+hr_b as u16 >= width {
+            if x+u16::from(hr_b) >= width {
               //out of bounds
               total_weight_h -= weights[(radius+hr_b) as usize];
             }
@@ -1786,9 +1793,9 @@ impl BMP {
           let mut new_b_h: f64 = 0.0;
           let mut new_a_h: f64 = 0.0;
           for hl in 1..radius+1 {
-            if x >= hl as u16 {
+            if x >= u16::from(hl) {
               //not out of bounds
-              let hl_color = self.get_color_of_px_efficient((x-hl as u16) as usize, y as usize, &dib_header, &pixel_data).unwrap();
+              let hl_color = self.get_color_of_px_efficient((x-u16::from(hl)) as usize, y as usize, &dib_header, &pixel_data).unwrap();
               new_r_h += hl_color[0] as f64 * (weights[(radius-hl) as usize] as f64) / total_weight_h as f64;
               new_g_h += hl_color[1] as f64 * (weights[(radius-hl) as usize] as f64) / total_weight_h as f64;
               new_b_h += hl_color[2] as f64 * (weights[(radius-hl) as usize] as f64) / total_weight_h as f64;
@@ -1801,9 +1808,9 @@ impl BMP {
           new_b_h += center_color[2] as f64 * (weights[(radius) as usize] as f64) / total_weight_h as f64;
           new_a_h += center_color[3] as f64 * (weights[(radius) as usize] as f64) / total_weight_h as f64;
           for hr in 1..radius+1 {
-            if x+(hr as u16) < width {
+            if x+u16::from(hr) < width {
               //not out of bounds
-              let hr_color = self.get_color_of_px_efficient((x+hr as u16) as usize, y as usize, &dib_header, &pixel_data).unwrap();
+              let hr_color = self.get_color_of_px_efficient((x+u16::from(hr)) as usize, y as usize, &dib_header, &pixel_data).unwrap();
               new_r_h += hr_color[0] as f64 * (weights[(radius-hr) as usize] as f64) / total_weight_h as f64;
               new_g_h += hr_color[1] as f64 * (weights[(radius-hr) as usize] as f64) / total_weight_h as f64;
               new_b_h += hr_color[2] as f64 * (weights[(radius-hr) as usize] as f64) / total_weight_h as f64;
@@ -1845,13 +1852,13 @@ impl BMP {
           let mut total_weight_v = total_weight;
           //check if out of bounds, calculate horizontal weights
           for vu_b in 1..radius+1 {
-            if y < vu_b as u16 {
+            if y < u16::from(vu_b) {
               //out of bounds
               total_weight_v -= weights[(radius-vu_b) as usize];
             }
           }
           for vd_b in 1..radius+1 {
-            if y+vd_b as u16 >= width {
+            if y+u16::from(vd_b) >= height {
               //out of bounds
               total_weight_v -= weights[(radius+vd_b) as usize];
             }
@@ -1862,9 +1869,9 @@ impl BMP {
           let mut new_b_h: f64 = 0.0;
           let mut new_a_h: f64 = 0.0;
           for vu in 1..radius+1 {
-            if y >= vu as u16 {
+            if y >= u16::from(vu) {
               //not out of bounds
-              let vu_color = self.get_color_of_px_efficient(x as usize, (y-vu as u16) as usize, &dib_header, &pixel_data).unwrap();
+              let vu_color = self.get_color_of_px_efficient(x as usize, (y-u16::from(vu)) as usize, &dib_header, &pixel_data).unwrap();
               new_r_h += vu_color[0] as f64 * (weights[(radius-vu) as usize] as f64) / total_weight_v as f64;
               new_g_h += vu_color[1] as f64 * (weights[(radius-vu) as usize] as f64) / total_weight_v as f64;
               new_b_h += vu_color[2] as f64 * (weights[(radius-vu) as usize] as f64) / total_weight_v as f64;
@@ -1878,9 +1885,9 @@ impl BMP {
           new_b_h += center_color[2] as f64 * (weights[(radius) as usize] as f64) / total_weight_v as f64;
           new_a_h += center_color[3] as f64 * (weights[(radius) as usize] as f64) / total_weight_v as f64;
           for vd in 1..radius+1 {
-            if y+(vd as u16) < height {
+            if y+u16::from(vd) < height {
               //not out of bounds
-              let vd_color = self.get_color_of_px_efficient(x as usize, (y+vd as u16) as usize, &dib_header, &pixel_data).unwrap();
+              let vd_color = self.get_color_of_px_efficient(x as usize, (y+u16::from(vd)) as usize, &dib_header, &pixel_data).unwrap();
               new_r_h += vd_color[0] as f64 * (weights[(radius-vd) as usize] as f64) / total_weight_v as f64;
               new_g_h += vd_color[1] as f64 * (weights[(radius-vd) as usize] as f64) / total_weight_v as f64;
               new_b_h += vd_color[2] as f64 * (weights[(radius-vd) as usize] as f64) / total_weight_v as f64;
@@ -2001,6 +2008,80 @@ impl BMP {
       }
     }
     return Ok(());
+  }
+  pub fn surround_filter(&mut self, radius: u8, get_new_pixel: impl Fn(u8, Vec<[u8; 4]>) -> [u8; 4]) -> Result<(), ErrorKind> {
+    //non separable filter that requires the surrounding pixels
+    let dib_header = self.get_dib_header();
+    let dib_header = match dib_header {
+      Ok(returned_dib_header) => returned_dib_header,
+      Err(e) => return Err(e),
+    };
+    let height: u16 = dib_header.height.abs() as u16;
+    let width: u16 = dib_header.width as u16;
+    if radius > 16 || radius == 0 {
+      return Err(ErrorKind::RadiusInvalid);
+    }
+    let pixel_data = self.get_pixel_data();
+    let pixel_data = match pixel_data {
+      Ok(returned_pixel_data) => returned_pixel_data,
+      Err(e) => return Err(e),
+    };
+    let header = self.get_header();
+    for y in 0..height {
+      for x in 0..width {
+        let mut surrounding_colors: Vec<[u8; 4]> = Vec::new();
+        //get surrounding colors and own color
+        let rows: u8 = radius*2+1;
+        for row in 0..rows {
+          //to the left of the center x
+          for left_num in 1..u16::from(radius+1) {
+            let left_pixel_color = self.get_color_of_pixel_efficient((x-left_num) as usize, (y as i16-(radius as i16-row as i16)) as usize, &dib_header, &pixel_data)?;
+            surrounding_colors.push(left_pixel_color);
+          }
+          //the same column as the center x
+          let center_pixel_color = self.get_color_of_pixel_efficient(x as usize, (y as i16-(radius as i16-row as i16)) as usize, &dib_header, &pixel_data)?;
+          surrounding_colors.push(center_pixel_color);
+          //to the right of the center x
+          for right_num in 1..u16::from(radius+1) {
+            let right_pixel_color = self.get_color_of_pixel_efficient((x+right_num) as usize, (y as i16-(radius as i16-row as i16)) as usize, &dib_header, &pixel_data)?;
+            surrounding_colors.push(right_pixel_color);
+          }
+        }
+        self.change_color_of_pixel_efficient(x, y, get_new_pixel(radius, surrounding_colors), &dib_header, &header)?;
+      }
+    }
+    return Ok(());
+  }
+  pub fn median_filter(&mut self, radius: u8) -> Result<(), ErrorKind> {
+    //good for filtering out noise
+    let get_median_pixel = |radius: u8, surrounding_pixels: Vec<[u8; 4]>| -> [u8; 4] {
+      let iter_surrounding = (&surrounding_pixels).into_iter();
+      let mut r_vec = iter_surrounding.clone().map(|item| item[0]).collect::<Vec<u8>>();
+      r_vec.sort();
+      let mut g_vec = iter_surrounding.clone().map(|item| item[1]).collect::<Vec<u8>>();
+      g_vec.sort();
+      let mut b_vec = iter_surrounding.clone().map(|item| item[2]).collect::<Vec<u8>>();
+      b_vec.sort();
+      let mut a_vec = iter_surrounding.clone().map(|item| item[3]).collect::<Vec<u8>>();
+      a_vec.sort();
+      [r_vec[radius as usize], g_vec[radius as usize], b_vec[radius as usize], a_vec[radius as usize]]
+    };
+    return self.surround_filter(radius, get_median_pixel);
+  }
+  pub fn mean_filter(&mut self, radius: u8) -> Result<(), ErrorKind> {
+    let get_mean_pixel = |_radius: u8, surrounding_pixels: Vec<[u8; 4]>| -> [u8; 4] {
+      let iter_surrounding = (&surrounding_pixels).into_iter();
+      let total_r: f64 = f64::from(iter_surrounding.clone().map(|item| u16::from(item[0])).reduce(|prev_total, current| prev_total+current).unwrap());
+      let total_g: f64 = f64::from(iter_surrounding.clone().map(|item| u16::from(item[1])).reduce(|prev_total, current| prev_total+current).unwrap());
+      let total_b: f64 = f64::from(iter_surrounding.clone().map(|item| u16::from(item[2])).reduce(|prev_total, current| prev_total+current).unwrap());
+      let total_a: f64 = f64::from(iter_surrounding.clone().map(|item| u16::from(item[3])).reduce(|prev_total, current| prev_total+current).unwrap());
+      let average_r: u8 = (total_r/(&surrounding_pixels).len() as f64).round() as u8;
+      let average_g: u8 = (total_g/(&surrounding_pixels).len() as f64).round() as u8;
+      let average_b: u8 = (total_b/(&surrounding_pixels).len() as f64).round() as u8;
+      let average_a: u8 = (total_a/(&surrounding_pixels).len() as f64).round() as u8;
+      [average_r, average_g, average_b, average_a]
+    };
+    return self.surround_filter(radius, get_mean_pixel);
   }
   //shape, line making functions
   pub fn draw_line(&mut self, fill: [u8; 4], p1: [u16; 2], p2: [u16; 2]) -> Result<(), ErrorKind> {
@@ -2259,7 +2340,7 @@ impl BMP {
         if !visited.contains(&[x2 as u16, y2+1 as u16]) && !queue.contains(&[x2 as u16, y2+1 as u16]) {
           let down_color = self.get_color_of_px_efficient(x2 as usize, (y2+1) as usize, &dib_header, &pixel_data)?;
           if down_color == replace_color {
-            queue.push([x2 as u16, y2+1 as u16]);
+            queue.push([x2, y2+1 as u16]);
           }
         }
       }
@@ -2268,7 +2349,7 @@ impl BMP {
           //does not go all the way to up color
           let up_color = self.get_color_of_px_efficient(x2 as usize, (y2-1) as usize, &dib_header, &pixel_data)?;
           if up_color == replace_color {
-            queue.push([x2 as u16, y2-1 as u16]);
+            queue.push([x2, y2-1 as u16]);
           }
         }
       }
@@ -2276,7 +2357,7 @@ impl BMP {
         if !visited.contains(&[x2-1 as u16, y2 as u16]) && !queue.contains(&[x2-1 as u16, y2 as u16]) {
           let left_color = self.get_color_of_px_efficient((x2-1) as usize, y2 as usize, &dib_header, &pixel_data)?;
           if left_color == replace_color {
-            queue.push([x2-1 as u16, y2 as u16]);
+            queue.push([x2-1 as u16, y2]);
           }
         }
       }
@@ -2284,7 +2365,7 @@ impl BMP {
         if !visited.contains(&[x2+1 as u16, y2 as u16]) && !queue.contains(&[x2+1 as u16, y2 as u16]) {
           let right_color = self.get_color_of_px_efficient((x2+1) as usize, y2 as usize, &dib_header, &pixel_data)?;
           if right_color == replace_color {
-            queue.push([x2+1 as u16, y2 as u16]);
+            queue.push([x2+1 as u16, y2]);
           }
         }
       }
