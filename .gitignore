@@ -5,3 +5,4 @@ replit.nix
 main
 *.exe
 *.pdb
+doc/

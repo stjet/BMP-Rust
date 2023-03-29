@@ -5,6 +5,18 @@ use bmp::bmp::BMP;
 
 //see time savings by 
 
+/*
+> rustc -O example/time_benchmark.rs
+> time_benchmark.exe
+Elapsed for invert: 52.56ms
+Elapsed for gaussian blur: 1.52s
+Elapsed for median filter: 2.97s
+Elapsed for large file creation: 3.23ms
+Elapsed for large file cloning: 631.80µs
+Elapsed for large file fill and stroke rect: 11.35ms
+Elapsed for large file fill bucket: 78.98s
+*/
+
 fn main() {
   let now = Instant::now();
   {
@@ -23,6 +35,16 @@ fn main() {
   }
   let elapsed = now.elapsed();
   println!("Elapsed for gaussian blur: {:.2?}", elapsed);
+
+  let now = Instant::now();
+  {
+    //60 seconds currently...
+    let mut file = BMP::new_from_file("example/images/example.bmp");
+    file.median_filter(3).expect("Failed to median filter");
+    file.save_to_new("example/images/example_median.bmp").expect("Failed to write to file");
+  }
+  let elapsed = now.elapsed();
+  println!("Elapsed for median filter: {:.2?}", elapsed);
 
   let mut large_scratch_file;
   let now = Instant::now();

@@ -3,7 +3,6 @@ mod bmp;
 use bmp::bmp::BMP;
 
 fn main() {
-  println!("{:?}", BMP::composite_colors([233,71,255,200], [0,0,0,0]));
   let file = BMP::new_from_file("example/images/example.bmp");  //tests of bmp lib
   assert_eq!(true, file.is_from_file());
   let file_size = file.get_size(true);
@@ -11,6 +10,8 @@ fn main() {
   assert_eq!(file_size/1024, BMP::num_bytes_to_kilobytes(file_size));
   assert_eq!(BMP::rgba_to_hex([45, 77, 0, 255]), "2D4D00FF".to_string());
   assert_eq!(BMP::hex_to_rgba("F7BA9E11".to_string()), [247, 186, 158, 17]);
+  assert_eq!(BMP::hsl_to_rgb([136.0, 0.95, 0.38]).unwrap(), [5, 189, 54]);
+  assert_eq!(BMP::composite_colors([233, 71, 255, 200], [0, 0, 0, 0]), [233, 71, 255, 200]);
   let dib_header = file.get_dib_header();
   //height, width, bitcount, etc dib size
   if let Ok(unwrapped_dib_header) = dib_header {
@@ -22,21 +23,17 @@ fn main() {
   println!("Smaller file opened");
   //pixel data seems to start from bottom left
   let mut small_file = BMP::new_from_file("example/images/small_example.bmp");
-
   /*
   if let Ok(unwrapped_dib_header2) = small_file.get_dib_header() {
     println!("Gamma: {} {} {}", unwrapped_dib_header2.GammaRed.unwrap(), unwrapped_dib_header2.GammaGreen.unwrap(), unwrapped_dib_header2.GammaBlue.unwrap());
     println!("{:?}", unwrapped_dib_header2.Endpoints.unwrap());
   }
   */
-  
-  //these are currently brg instead of rgb
   println!("{:?}", small_file.get_color_of_px(10, 10).unwrap());
   println!("{:?}", small_file.get_color_of_px(40, 10).unwrap());
   println!("{:?}", small_file.get_color_of_px(10, 40).unwrap());
   assert_eq!([233, 71, 255, 255],  small_file.get_color_of_px(40, 40).unwrap());
-  println!("{}", small_file.get_format());
-
+  assert_eq!("bgra".to_string(), small_file.get_format());
   //let ttt = u32::from_le_bytes([255, 255, 255, 255]);
   //println!("{}", ttt);
   //println!("{}", ttt & 0b00000000111111110000000000000000);\
@@ -141,7 +138,7 @@ fn main() {
   translate_file3.translate(-25, 40).expect("Translate failed");
   translate_file3.save_to_new("example/images/translate3.bmp").expect("Failed to write to file");
   println!("Rotate test");
-  let mut rotate_file = BMP::new_from_file("example/images/small_example.bmp");
+  let rotate_file = BMP::new_from_file("example/images/small_example.bmp");
   let mut rotate_file2 = rotate_file.clone();
   let mut rotate_file3 = rotate_file.clone();
   let mut rotate_file4 = rotate_file.clone();
@@ -160,6 +157,9 @@ fn main() {
   let mut blur_file2 = BMP::new_from_file("example/images/blur_attempt2.bmp");
   blur_file2.gaussian_blur(4).expect("Failed to blur");
   blur_file2.save_to_new("example/images/gaussian_blur2.bmp").expect("Failed to write to file");
+  let mut blur_file3 = BMP::new_from_file("example/images/blur_attempt.bmp");
+  blur_file3.box_blur(4).expect("Failed to blur");
+  blur_file3.save_to_new("example/images/box_blur.bmp").expect("Failed to write to file");
   println!("Grayscale test");
   let mut grayscale_file1 = BMP::new_from_file("example/images/small_example.bmp");
   grayscale_file1.greyscale().expect("Failed to grayscale");
@@ -176,6 +176,14 @@ fn main() {
   let mut grayscale_file5 = BMP::new_from_file("example/images/small_example.bmp");
   grayscale_file5.channel_grayscale(bmp::bmp::RGBAChannel::Alpha).expect("Failed to channel grayscale");
   grayscale_file5.save_to_new("example/images/grayscale_a.bmp").expect("Failed to write to file");
+  //median and mean filter test
+  println!("Median and mean filter test");
+  let mut small_noise = BMP::new_from_file("example/images/small_noise.bmp");
+  small_noise.median_filter(3).expect("Failed to median filter");
+  small_noise.save_to_new("example/images/noise_median.bmp").expect("Failed to write to file");
+  let mut small_noise2 = BMP::new_from_file("example/images/small_noise.bmp");
+  small_noise2.mean_filter(3).expect("Failed to mean filter");
+  small_noise2.save_to_new("example/images/noise_mean.bmp").expect("Failed to write to file");
   //test diff
   //default color is [255, 255, 255, 255]
   println!("Diff test");

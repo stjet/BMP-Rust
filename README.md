@@ -1,12 +1,14 @@
 # BMP Rust
-BMP Rust is a rust library to read and write .bmp Image files. It has zero dependencies.
+BMP Rust is a pure rust library to read and write .bmp Image files. It has zero dependencies.
+
+Besides the basic reading pixel color and changing pixel color, various filters, blurs, and shapes are implemented. The library can also parse the file header, DIB header and other parts of the file. Many useful utility functions are also included.
 
 ## Install
-Obviously, install Rust. Add bmp-rust to your Cargo.toml file
+Obviously, install Rust. Add bmp-rust to your Cargo.toml file:
 
 ```toml
 [dependencies]
-bmp-rust ="0.3.4"
+bmp-rust ="0.4.0"
 ```
 
 You can now use the crate:
@@ -41,9 +43,15 @@ bmp_from_file.draw_line([100, 65, 45, 255], [20, 20], [52, 52]).expect("Failed t
 bmp_from_file.draw_rectangle(None, Some([255, 255, 255, 255]), [0,2], [15,11]).expect("Failed to draw rect");
 bmp_from_file.draw_ellipse([23, 25], 10, 12, [255, 0, 0, 255], Some([125, 64, 64, 255]), true).expect("Failed to draw ellipse");
 bmp_from_file.invert(None).expect("Failed to invert");
-bmp_from_file.change_opacity(25).expect("Failed to change opacity");
+bmp_from_file.change_opacity(90).expect("Failed to change opacity");
 bmp_from_file.draw_image(5, 5, bmp_from_scratch).expect("Failed to draw image");
 bmp_from_file.translate(-3, 5);
+bmp_from_file.gaussian_blur(3).expect("Failed to gaussian blur");
+```
+
+Finally, the modified file can be saved to a file:
+```rust
+bmp_from_file.save_to_new("example/images/edited_midnight.bmp").expect("Failed to write to file");
 ```
 
 Look at the [source code](src/bmp.rs) or [tests/example](example/main.rs) for more functions, and their usage.
