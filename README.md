@@ -8,7 +8,7 @@ Obviously, install Rust. Add bmp-rust to your Cargo.toml file:
 
 ```toml
 [dependencies]
-bmp-rust ="0.4.0"
+bmp-rust ="0.4.1"
 ```
 
 You can now use the crate:

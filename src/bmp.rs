@@ -540,7 +540,9 @@ impl BMP {
       return false;
     }
     //see how many points in enclosure have same y as our point, casting a ray to the right (arbitrary, could be to the left)
-    let same_y_count_right = enclosure.into_iter().filter(|item| item[1] == point[1] && item[0] < point[0]).count();
+    let same_y_count_right = enclosure.into_iter().filter(|item| {
+      item[1] == point[1] && item[0] > point[0]
+    }).count();
     //if even, false, if odd, true
     return same_y_count_right % 2 == 1;
   }
