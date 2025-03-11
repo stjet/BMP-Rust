@@ -8,7 +8,7 @@ Obviously, install Rust. Add bmp-rust to your Cargo.toml file:
 
 ```toml
 [dependencies]
-bmp-rust ="0.4.1"
+bmp-rust ="0.5.0"
 ```
 
 You can now use the crate:
@@ -22,7 +22,7 @@ The [docs.rs](https://docs.rs/bmp-rust/latest/bmp_rust/bmp/index.html) page cont
 
 First, load a BMP file by file path, or create a new one:
 ```rust
-let mut bmp_from_file = BMP::new_from_file("midnight.bmp");
+let mut bmp_from_file = BMP::new_from_file("midnight.bmp").unwrap();
 let mut bmp_from_scratch = BMP::new(15, 15, None);
 ```
 

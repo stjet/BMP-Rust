@@ -19,7 +19,10 @@ http://fileformats.archiveteam.org/wiki/BMP
 const HEADER_OFFSET: usize = 14;
 
 //Errors
+#[derive(PartialEq)]
 pub enum ErrorKind {
+  NotFound,
+  OutOfBounds,
   Unsupported,
   DoesNotExist,
   WrongFileType,
@@ -32,6 +35,8 @@ pub enum ErrorKind {
 impl ErrorKind {
   fn get_text(&self) -> String {
     match &*self {
+      ErrorKind::NotFound => "File not found".to_string(),
+      ErrorKind::OutOfBounds => "x or y coord exceeds width or height of image".to_string(),
       ErrorKind::Unsupported => "File is unsupported".to_string(),
       ErrorKind::DoesNotExist => "Requested object does not exist".to_string(),
       ErrorKind::WrongFileType => "Wrong file type. Must be a .bmp file".to_string(),
@@ -446,10 +451,9 @@ impl BMP {
     return BMP { contents: contents, from_file: false };
   }
   /// Load BMP from file.
-  pub fn new_from_file(file_path: &str) -> BMP {
-    let contents = fs::read(file_path)
-      .expect("Error encountered");
-    return BMP { contents: contents, from_file: true, };
+  pub fn new_from_file(file_path: &str) -> Result<BMP, ErrorKind> {
+    let contents = fs::read(file_path).map_err(|_| ErrorKind::NotFound)?;
+    Ok(BMP { contents: contents, from_file: true })
   }
   //utilities
   fn bytes_to_int(bytes: [u8; 4]) -> u32 {
@@ -1168,6 +1172,9 @@ impl BMP {
       Ok(returned_dib_header) => returned_dib_header,
       Err(e) => return Err(e),
     };
+    if x >= (dib_header.width as usize) || y >= (dib_header.height as usize) {
+      return Err(ErrorKind::OutOfBounds);
+    }
     //need to check if error
     let pixel_data = self.get_pixel_data();
     let pixel_data = match pixel_data {
@@ -1283,6 +1290,9 @@ impl BMP {
   }
   /// More efficient version of `get_color_of_pixel` that accepts the DIB header and pixel array as references to prevent unnecessary and slow copying of data.
   pub fn get_color_of_pixel_efficient(&self, x: usize, y: usize, dib_header: &DIBHEADER, pixel_data: &VecDeque<Vec<Vec<u8>>>) -> Result<[u8; 4], ErrorKind> {
+    if x >= (dib_header.width as usize) || y >= (dib_header.height as usize) {
+      return Err(ErrorKind::OutOfBounds);
+    }
     let pixel: &Vec<u8> = &pixel_data[y][x];
     let pixel: Vec<u8> = pixel.to_vec();
     //TODO: incorporate masks
@@ -1466,6 +1476,9 @@ impl BMP {
       Ok(returned_dib_header) => returned_dib_header,
       Err(e) => return Err(e),
     };
+    if u32::from(x) >= dib_header.width || i32::from(y) >= dib_header.height {
+      return Err(ErrorKind::OutOfBounds);
+    }
     let header = self.get_header();
     //bits per pixel
     let bitcount = dib_header.bitcount;
@@ -1535,6 +1548,9 @@ impl BMP {
   }
   /// More efficient version of `change_color_of_pixel` that accepts the DIB header and file header as references to prevent unnecessary and slow copying of data.
   pub fn change_color_of_pixel_efficient(&mut self, x: u16, mut y: u16, new_color: [u8; 4], dib_header: &DIBHEADER, header: &BITMAPFILEHEADER) -> Result<(), ErrorKind> {
+    if u32::from(x) >= dib_header.width || i32::from(y) >= dib_header.height {
+      return Err(ErrorKind::OutOfBounds);
+    }
     //bits per pixel
     let bitcount = dib_header.bitcount;
     //only 24 and 32 bit
@@ -2588,3 +2604,19 @@ impl BMP {
 //https://docs.microsoft.com/en-us/windows/win32/wcs/basic-color-management-concepts
 
 /*RGB to written color hash table*/
+
+#[test]
+fn non_existent_file() {
+  assert!(BMP::new_from_file("doesnotexist.bmp") == Err(ErrorKind::NotFound));
+}
+
+#[test]
+fn out_of_bounds_access() {
+  let mut b = BMP::new(150, 150, None);
+  assert!(b.get_color_of_pixel(0, 150) == Err(ErrorKind::OutOfBounds));
+  assert!(b.get_color_of_pixel(150, 0).is_err());
+  assert!(b.get_color_of_pixel(150, 150).is_err());
+  assert!(b.get_color_of_pixel(149, 149).is_ok());
+  assert!(b.change_color_of_pixel(149, 149, [128, 128, 128, 255]).is_ok());
+  assert!(b.change_color_of_pixel(150, 150, [128, 128, 128, 255]).is_err());
+}
